@@ -1,3 +1,8 @@
 from django.contrib import admin
+from .models import AnalyticsEvent
 
-# Register your models here.
+@admin.register(AnalyticsEvent)
+class AnalyticsEventAdmin(admin.ModelAdmin):
+    list_display = ('event_type', 'entity_id', 'user', 'timestamp')
+    list_filter = ('event_type', 'timestamp')
+    search_fields = ('event_type', 'entity_id', 'user__email')
