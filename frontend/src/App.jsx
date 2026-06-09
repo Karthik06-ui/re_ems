@@ -5,9 +5,18 @@ import LandingPage from './pages/LandingPage';
 import ChapterPage from './pages/ChapterPage';
 import EventPage from './pages/EventPage';
 import UserDashboard from './pages/UserDashboard';
-import AdminDashboard from './pages/AdminDashboard';
 import AuthPage from './pages/AuthPage';
+import DashboardOverview from './pages/dashboard/DashboardOverview';
+import AnalyticsDashboard from './pages/dashboard/AnalyticsDashboard';
+import EventList from './pages/dashboard/EventList';
+import EventDetailWorkspace from './pages/dashboard/EventDetailWorkspace';
+import SettingsWorkspace from './pages/dashboard/SettingsWorkspace';
+import EmailsDashboard from './pages/dashboard/EmailsDashboard';
+import MembersDashboard from './pages/dashboard/MembersDashboard';
+import SponsorsDashboard from './pages/dashboard/SponsorsDashboard';
+import HelpDashboard from './pages/dashboard/HelpDashboard';
 import './App.css';
+
 
 function MainLayout() {
   const { user, logout, isAuthenticated } = useAuth();
@@ -52,7 +61,7 @@ function MainLayout() {
               <>
                 <Link to="/portal/dashboard" className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '13px', textDecoration: 'none' }}>My Dashboard</Link>
                 {user && (user.role === 'platform_admin' || user.role === 'chapter_lead' || user.role === 'organizer') && (
-                  <Link to="/admin/dashboard" className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '13px', textDecoration: 'none' }}>Admin</Link>
+                  <Link to="/dashboard" className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: '13px', textDecoration: 'none' }}>Admin</Link>
                 )}
                 <div className="session-info" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span className="role-tag">{user?.role}</span>
@@ -74,7 +83,23 @@ function MainLayout() {
           <Route path="/events/:id" element={<EventPage />} />
           <Route path="/auth/login" element={<AuthPage />} />
           <Route path="/portal/dashboard" element={<UserDashboard />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          
+          {/* HIGH-FIDELITY GDG DASHBOARD ROUTES */}
+          <Route path="/dashboard" element={<DashboardOverview />} />
+          <Route path="/dashboard/analytics" element={<AnalyticsDashboard />} />
+          <Route path="/dashboard/analytics/:tab" element={<AnalyticsDashboard />} />
+          <Route path="/dashboard/events" element={<EventList />} />
+          <Route path="/dashboard/events/:id" element={<EventDetailWorkspace />} />
+          <Route path="/dashboard/events/:id/:tab" element={<EventDetailWorkspace />} />
+          <Route path="/dashboard/settings" element={<SettingsWorkspace />} />
+          <Route path="/dashboard/settings/:tab" element={<SettingsWorkspace />} />
+          <Route path="/dashboard/emails" element={<EmailsDashboard />} />
+          <Route path="/dashboard/members" element={<MembersDashboard />} />
+          <Route path="/dashboard/sponsors" element={<SponsorsDashboard />} />
+          <Route path="/dashboard/help" element={<HelpDashboard />} />
+          
+          {/* Legacy fallback path */}
+          <Route path="/admin/dashboard" element={<DashboardOverview />} />
         </Routes>
       </main>
 
