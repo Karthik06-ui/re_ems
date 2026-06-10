@@ -27,11 +27,7 @@ export default function SettingsWorkspace() {
   const [themeColor, setThemeColor] = useState('#1A73E8');
 
   // Team Tab States
-  const [teamMembers, setTeamMembers] = useState([
-    { id: 1, name: 'Karthik S', email: 'karthik@gdgdemo.org', role: 'Chapter Lead', canPublish: true, canEmail: true },
-    { id: 2, name: 'Deepika Kumar', email: 'deepika.k@college.edu', role: 'Organizer', canPublish: true, canEmail: false }
-  ]);
-  const [newTeamName, setNewTeamName] = useState('');
+  const [teamMembers, setTeamMembers] = useState([]);
   const [newTeamEmail, setNewTeamEmail] = useState('');
   const [newTeamRole, setNewTeamRole] = useState('Organizer');
 
@@ -39,6 +35,21 @@ export default function SettingsWorkspace() {
   const [gaTrackingId, setGaTrackingId] = useState('G-XXXXXXXXXX');
 
   const [saving, setSaving] = useState(false);
+
+  const fetchTeamMembers = async () => {
+    if (!activeChapter) return;
+    const { status, data } = await apiRequest(`/api/v1/chapters/${activeChapter.slug}/roles/`, 'GET', null, true);
+    if (status === 200) {
+      setTeamMembers(data.map(item => ({
+        id: item.id,
+        name: item.user.name || item.user.email,
+        email: item.user.email,
+        role: item.role === 'chapter_lead' ? 'Chapter Lead' : item.role === 'organizer' ? 'Organizer' : 'Member',
+        canPublish: item.role !== 'member',
+        canEmail: item.role !== 'member'
+      })));
+    }
+  };
 
   useEffect(() => {
     if (activeChapter) {
@@ -50,11 +61,17 @@ export default function SettingsWorkspace() {
     }
   }, [activeChapter]);
 
+  useEffect(() => {
+    if (activeChapter && tab === 'team') {
+      fetchTeamMembers();
+    }
+  }, [activeChapter, tab]);
+
   const handleSaveSettings = async () => {
     if (!activeChapter) return;
     setSaving(true);
 
-    const { status, data } = await apiRequest(`/api/v1/chapters/${activeChapter.id}/`, 'PATCH', {
+    const { status, data } = await apiRequest(`/api/v1/chapters/${activeChapter.slug}/`, 'PATCH', {
       name: title,
       location: locationStr,
       description: description,
@@ -71,25 +88,35 @@ export default function SettingsWorkspace() {
     setSaving(false);
   };
 
-  const handleAddTeamMember = (e) => {
+  const handleAddTeamMember = async (e) => {
     e.preventDefault();
-    if (!newTeamName || !newTeamEmail) return;
-    const newMember = {
-      id: Date.now(),
-      name: newTeamName,
-      email: newTeamEmail,
-      role: newTeamRole,
-      canPublish: true,
-      canEmail: true
-    };
-    setTeamMembers(prev => [...prev, newMember]);
-    setNewTeamName('');
-    setNewTeamEmail('');
-    alert(`Added team member: ${newTeamName}`);
+    if (!newTeamEmail) return;
+    const backendRole = newTeamRole === 'Chapter Lead' ? 'chapter_lead' : 'organizer';
+
+    const { status, data } = await apiRequest(`/api/v1/chapters/${activeChapter.slug}/roles/`, 'POST', {
+      user_email: newTeamEmail,
+      role: backendRole
+    }, true);
+
+    if (status === 201 || status === 200) {
+      setNewTeamEmail('');
+      fetchTeamMembers();
+    } else {
+      alert(data.user_email ? data.user_email[0] : 'Failed to invite team member. Please verify user email is registered.');
+    }
   };
 
-  const togglePermission = (id, field) => {
-    setTeamMembers(prev => prev.map(m => m.id === id ? { ...m, [field]: !m[field] } : m));
+  const handleRemoveTeamMember = async (roleId) => {
+    if (!window.confirm("Remove this team member role?")) return;
+    const { status, data } = await apiRequest(`/api/v1/chapters/${activeChapter.slug}/roles/`, 'DELETE', {
+      role_id: roleId
+    }, true);
+
+    if (status === 204 || status === 200) {
+      fetchTeamMembers();
+    } else {
+      alert(data?.detail || 'Failed to remove team member.');
+    }
   };
 
   const settingsTabs = ['overview', 'branding', 'team', 'tracking'];
@@ -282,7 +309,7 @@ export default function SettingsWorkspace() {
                           />
                         </td>
                         <td style={{ padding: '12px 16px' }}>
-                          <button className="gdg-share-icon-btn" style={{ color: 'var(--gdg-error)' }} onClick={() => setTeamMembers(prev => prev.filter(t => t.id !== m.id))}><Trash2 size={12} /></button>
+                          <button className="gdg-share-icon-btn" style={{ color: 'var(--gdg-error)' }} onClick={() => handleRemoveTeamMember(m.id)}><Trash2 size={12} /></button>
                         </td>
                       </tr>
                     ))}
@@ -294,12 +321,8 @@ export default function SettingsWorkspace() {
             <DashboardCard title="Add Team Member">
               <form onSubmit={handleAddTeamMember} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div className="form-group">
-                  <label>Full Name</label>
-                  <input type="text" value={newTeamName} onChange={e => setNewTeamName(e.target.value)} required />
-                </div>
-                <div className="form-group">
                   <label>Email Address</label>
-                  <input type="email" value={newTeamEmail} onChange={e => setNewTeamEmail(e.target.value)} required />
+                  <input type="email" value={newTeamEmail} onChange={e => setNewTeamEmail(e.target.value)} required placeholder="user@gmail.com" />
                 </div>
                 <div className="form-group">
                   <label>Role</label>

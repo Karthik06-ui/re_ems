@@ -32,7 +32,7 @@ class ChapterViewSet(viewsets.ModelViewSet):
         instance.deleted_at = timezone.now()
         instance.save()
 
-    @action(detail=True, methods=['get', 'post'], permission_classes=[IsAuthenticated])
+    @action(detail=True, methods=['get', 'post', 'delete'], permission_classes=[IsAuthenticated])
     def roles(self, request, slug=None):
         chapter = self.get_object()
         
@@ -53,6 +53,22 @@ class ChapterViewSet(viewsets.ModelViewSet):
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        if request.method == 'DELETE':
+            if not is_lead:
+                return Response(
+                    {"detail": "You do not have permission to manage roles for this chapter."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            role_id = request.data.get('role_id')
+            if not role_id:
+                return Response(
+                    {"detail": "role_id is required to delete a role assignment."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            role_instance = get_object_or_404(UserChapterRole, id=role_id, chapter=chapter)
+            role_instance.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
             
         # GET method
         roles = chapter.user_roles.all()

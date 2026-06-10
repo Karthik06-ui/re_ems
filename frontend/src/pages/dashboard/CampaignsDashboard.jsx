@@ -68,9 +68,21 @@ export default function CampaignsDashboard() {
     }
   };
 
-  const handleScheduleCampaign = (id) => {
-    alert(`Campaign successfully scheduled for ${scheduleDate} at ${scheduleTime}`);
-    setMsg(`Campaign scheduled for: ${scheduleDate} ${scheduleTime}`);
+  const handleScheduleCampaign = async (id) => {
+    setMsg('');
+    setErr('');
+    const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}:00`).toISOString();
+    const { status } = await apiRequest(`/api/v1/campaigns/${id}/`, 'PATCH', {
+      status: 'scheduled',
+      scheduled_at: scheduledDateTime
+    }, true);
+
+    if (status === 200) {
+      setMsg(`Campaign scheduled for: ${scheduleDate} ${scheduleTime}`);
+      fetchCampaigns();
+    } else {
+      setErr('Failed to schedule campaign.');
+    }
   };
 
   return (

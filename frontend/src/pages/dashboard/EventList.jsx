@@ -109,6 +109,29 @@ export default function EventList() {
     }
   };
 
+  const handleDuplicateEvent = async (eventToDuplicate) => {
+    if (!activeChapter) return;
+    const copyTitle = `${eventToDuplicate.title} (Copy)`;
+    const { status } = await apiRequest('/api/v1/events/', 'POST', {
+      chapter: activeChapter.id,
+      title: copyTitle,
+      description: eventToDuplicate.description || 'Hands-on DevOps pipeline integrations, CI/CD models review, and containerized deployment scheduling.',
+      type: eventToDuplicate.type || 'physical',
+      capacity: eventToDuplicate.capacity,
+      venue: eventToDuplicate.venue,
+      start_time: eventToDuplicate.start_time,
+      end_time: eventToDuplicate.end_time,
+      timezone: eventToDuplicate.timezone || 'GMT+5:30',
+      status: 'draft'
+    }, true);
+
+    if (status === 201) {
+      fetchEventsData();
+    } else {
+      alert("Failed to duplicate event.");
+    }
+  };
+
   const filteredEvents = events.filter(e => {
     const matchesQuery = e.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           e.venue.toLowerCase().includes(searchQuery.toLowerCase());
@@ -203,7 +226,7 @@ export default function EventList() {
               event={event}
               onEdit={(id) => navigate(`/dashboard/events/${id}/overview`)}
               onView={(id) => navigate(`/dashboard/events/${id}/overview`)}
-              onDuplicate={() => alert('Event duplicated successfully!')}
+              onDuplicate={handleDuplicateEvent}
               onDelete={handleDeleteDraft}
               onTransition={handleTransitionState}
             />

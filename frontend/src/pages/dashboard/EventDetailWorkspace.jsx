@@ -96,6 +96,13 @@ export default function EventDetailWorkspace() {
   const [annSubject, setAnnSubject] = useState('');
   const [annBody, setAnnBody] = useState('');
 
+  // Event sponsors states
+  const [eventSponsors, setEventSponsors] = useState([]);
+  const [allSponsors, setAllSponsors] = useState([]);
+  const [selectedSponsorId, setSelectedSponsorId] = useState('');
+  const [sponsorTierOverride, setSponsorTierOverride] = useState('gold');
+  const [addingSponsor, setAddingSponsor] = useState(false);
+
   const fetchWorkspaceDetails = async () => {
     setLoading(true);
     const { status, data } = await apiRequest(`/api/v1/events/${id}/`, 'GET', null, false);
@@ -109,9 +116,26 @@ export default function EventDetailWorkspace() {
     setLoading(false);
   };
 
+  const fetchSponsorsData = async () => {
+    const placementRes = await apiRequest(`/api/v1/sponsors/event-placements/?event=${id}`, 'GET', null, true);
+    if (placementRes.status === 200) {
+      setEventSponsors(placementRes.data);
+    }
+    const allSponsorsRes = await apiRequest(`/api/v1/sponsors/`, 'GET', null, true);
+    if (allSponsorsRes.status === 200 && event) {
+      setAllSponsors(allSponsorsRes.data.filter(s => s.chapter === event.chapter));
+    }
+  };
+
   useEffect(() => {
     fetchWorkspaceDetails();
   }, [id]);
+
+  useEffect(() => {
+    if (tab === 'sponsors') {
+      fetchSponsorsData();
+    }
+  }, [tab, id, event]);
 
   const handleUpdateDetails = async (e) => {
     e.preventDefault();
@@ -157,6 +181,35 @@ export default function EventDetailWorkspace() {
       alert(`Seat promoted to Confirmed: ${emailToPromote}`);
     } else {
       alert('Promotion failed.');
+    }
+  };
+
+  const handleAssignSponsor = async (e) => {
+    e.preventDefault();
+    if (!selectedSponsorId) return;
+
+    const { status } = await apiRequest('/api/v1/sponsors/event-placements/', 'POST', {
+      event: parseInt(id),
+      sponsor: parseInt(selectedSponsorId),
+      tier_override: sponsorTierOverride
+    }, true);
+
+    if (status === 201) {
+      setAddingSponsor(false);
+      setSelectedSponsorId('');
+      fetchSponsorsData();
+    } else {
+      alert("Failed to assign sponsor to event.");
+    }
+  };
+
+  const handleRemoveSponsorPlacement = async (placementId) => {
+    if (!window.confirm("Remove this sponsor from the event?")) return;
+    const { status } = await apiRequest(`/api/v1/sponsors/event-placements/${placementId}/`, 'DELETE', null, true);
+    if (status === 200 || status === 204) {
+      fetchSponsorsData();
+    } else {
+      alert("Failed to remove sponsor placement.");
     }
   };
 
@@ -509,21 +562,81 @@ export default function EventDetailWorkspace() {
 
         {/* SPONSORS TAB */}
         {tab === 'sponsors' && (
-          <DashboardCard title="Event Sponsor Tier Placements">
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-              <div style={{ border: '1px solid var(--gdg-border)', borderRadius: '6px', padding: '16px', background: '#FFF' }}>
-                <strong style={{ display: 'block', color: 'var(--gdg-blue)', fontSize: '11px', marginBottom: '8px' }}>GOLD PLACEMENT</strong>
-                <h4 style={{ margin: 0, fontSize: '15px' }}>Vercel Inc.</h4>
+          <div className="gdg-grid-2-1">
+            <DashboardCard title="Event Sponsor Tier Placements">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
+                {eventSponsors.length === 0 ? (
+                  <p style={{ fontStyle: 'italic', color: 'var(--gdg-text-secondary)', fontSize: '13px', gridColumn: 'span 2' }}>
+                    No sponsors assigned to this event yet.
+                  </p>
+                ) : null}
+                {eventSponsors.map(placement => {
+                  const s = placement.sponsor_details;
+                  if (!s) return null;
+                  const tier = placement.tier_override || s.tier;
+                  return (
+                    <div key={placement.id} style={{ border: '1px solid var(--gdg-border)', borderRadius: '6px', padding: '16px', background: '#FFF', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <strong style={{ 
+                          display: 'block', 
+                          color: tier === 'platinum' ? 'var(--gdg-blue)' : tier === 'gold' ? '#FBBC05' : tier === 'silver' ? '#7C4DFF' : '#9AA0A6', 
+                          fontSize: '11px', 
+                          marginBottom: '8px',
+                          textTransform: 'uppercase'
+                        }}>
+                          {tier} PLACEMENT
+                        </strong>
+                        <h4 style={{ margin: 0, fontSize: '15px' }}>{s.name}</h4>
+                      </div>
+                      <button 
+                        className="gdg-share-icon-btn" 
+                        style={{ color: 'var(--gdg-error)' }} 
+                        onClick={() => handleRemoveSponsorPlacement(placement.id)}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-              <div style={{ border: '1px solid var(--gdg-border)', borderRadius: '6px', padding: '16px', background: '#FFF' }}>
-                <strong style={{ display: 'block', color: 'var(--gdg-blue)', fontSize: '11px', marginBottom: '8px' }}>SILVER PLACEMENT</strong>
-                <h4 style={{ margin: 0, fontSize: '15px' }}>JetBrains</h4>
-              </div>
-              <div style={{ border: '1px dashed var(--gdg-border)', borderRadius: '6px', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: '#F8F9FA' }}>
-                <span style={{ fontSize: '12px', color: 'var(--gdg-text-secondary)', fontWeight: 500 }}>+ Assign Sponsor</span>
-              </div>
-            </div>
-          </DashboardCard>
+            </DashboardCard>
+
+            <DashboardCard title="Assign Chapter Sponsor">
+              {addingSponsor ? (
+                <form onSubmit={handleAssignSponsor} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div className="form-group">
+                    <label>Select Sponsor</label>
+                    <select value={selectedSponsorId} onChange={e => setSelectedSponsorId(e.target.value)} required>
+                      <option value="">-- Choose Sponsor --</option>
+                      {allSponsors.map(s => (
+                        <option key={s.id} value={s.id}>{s.name} ({s.tier})</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="form-group">
+                    <label>Tier Override (Optional)</label>
+                    <select value={sponsorTierOverride} onChange={e => setSponsorTierOverride(e.target.value)}>
+                      <option value="gold">Gold Sponsor</option>
+                      <option value="silver">Silver Sponsor</option>
+                      <option value="bronze">Bronze Sponsor</option>
+                      <option value="platinum">Platinum Sponsor</option>
+                    </select>
+                  </div>
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                    <button className="btn btn-primary" type="submit" style={{ flex: 1 }}>Assign</button>
+                    <button className="btn btn-secondary" type="button" onClick={() => setAddingSponsor(false)} style={{ flex: 1 }}>Cancel</button>
+                  </div>
+                </form>
+              ) : (
+                <div 
+                  onClick={() => setAddingSponsor(true)}
+                  style={{ border: '1px dashed var(--gdg-border)', borderRadius: '6px', padding: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: '#F8F9FA' }}
+                >
+                  <span style={{ fontSize: '13px', color: 'var(--gdg-blue)', fontWeight: 600 }}>+ Assign Chapter Sponsor</span>
+                </div>
+              )}
+            </DashboardCard>
+          </div>
         )}
 
         {/* COMMUNICATIONS TAB */}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import DashboardShell from './DashboardShell';
 import { DashboardCard, StatusBadge } from '../../components/DashboardComponents';
-import { Award, Plus, Globe, RefreshCw, BarChart } from 'lucide-react';
+import { Award, Plus, Globe, RefreshCw, BarChart, Trash2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChapter } from '../../contexts/ChapterContext';
 
@@ -53,6 +53,16 @@ export default function SponsorsDashboard() {
       fetchSponsorsData();
     } else {
       setErr('Failed to save sponsor placement.');
+    }
+  };
+
+  const handleDeleteSponsor = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this sponsor?")) return;
+    const { status } = await apiRequest(`/api/v1/sponsors/${id}/`, 'DELETE', null, true);
+    if (status === 200 || status === 204) {
+      fetchSponsorsData();
+    } else {
+      alert("Failed to delete sponsor.");
     }
   };
 
@@ -120,17 +130,26 @@ export default function SponsorsDashboard() {
                     </div>
                   </div>
                   
-                  <span className="role-tag" style={{ 
-                    backgroundColor: s.tier === 'platinum' ? '#E8F0FE' : s.tier === 'gold' ? '#FFF3CD' : s.tier === 'silver' ? '#E2E3E5' : '#D1ECF1',
-                    color: s.tier === 'platinum' ? 'var(--gdg-blue)' : s.tier === 'gold' ? '#856404' : s.tier === 'silver' ? '#383D41' : '#0C5460',
-                    fontSize: '10px',
-                    fontWeight: 'bold',
-                    textTransform: 'uppercase',
-                    padding: '2px 6px',
-                    borderRadius: '4px'
-                  }}>
-                    {s.tier}
-                  </span>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span className="role-tag" style={{ 
+                      backgroundColor: s.tier === 'platinum' ? '#E8F0FE' : s.tier === 'gold' ? '#FFF3CD' : s.tier === 'silver' ? '#E2E3E5' : '#D1ECF1',
+                      color: s.tier === 'platinum' ? 'var(--gdg-blue)' : s.tier === 'gold' ? '#856404' : s.tier === 'silver' ? '#383D41' : '#0C5460',
+                      fontSize: '10px',
+                      fontWeight: 'bold',
+                      textTransform: 'uppercase',
+                      padding: '2px 6px',
+                      borderRadius: '4px'
+                    }}>
+                      {s.tier}
+                    </span>
+                    <button 
+                      className="gdg-share-icon-btn" 
+                      style={{ color: 'var(--gdg-error)' }} 
+                      onClick={() => handleDeleteSponsor(s.id)}
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
