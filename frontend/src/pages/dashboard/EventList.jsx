@@ -46,13 +46,16 @@ export default function EventList() {
 
   const handleCreateDraft = async (e) => {
     e.preventDefault();
-    if (!activeChapter) return;
+    if (!activeChapter) {
+      alert("No active chapter selected. Please register a chapter first.");
+      return;
+    }
 
     const start_time = new Date();
     start_time.setDate(start_time.getDate() + 7);
     const end_time = new Date(start_time.getTime() + 3 * 60 * 60 * 1000);
 
-    const { status } = await apiRequest('/api/v1/events/', 'POST', {
+    const { status, data } = await apiRequest('/api/v1/events/', 'POST', {
       chapter: activeChapter.id,
       title: newTitle,
       description: 'Hands-on DevOps pipeline integrations, CI/CD models review, and containerized deployment scheduling.',
@@ -68,6 +71,9 @@ export default function EventList() {
     if (status === 201) {
       setCreating(false);
       fetchEventsData();
+      alert("Event draft created successfully!");
+    } else {
+      alert("Failed to create event draft: " + (data?.detail || JSON.stringify(data)));
     }
   };
 
