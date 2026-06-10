@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import DashboardShell from './DashboardShell';
-import { Users, Search, RefreshCw, Mail, ShieldAlert } from 'lucide-react';
+import { DashboardCard, StatusBadge, FilterPill } from '../../components/DashboardComponents';
+import { Search, ShieldAlert, RefreshCw, BookOpen, Clock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChapter } from '../../contexts/ChapterContext';
 
@@ -8,104 +9,159 @@ export default function MembersDashboard() {
   const { apiRequest } = useAuth();
   const { activeChapter } = useChapter();
 
-  const [members, setMembers] = useState([]);
+  const [members, setMembers] = useState([
+    { id: 1, name: 'Karthik S', email: 'karthik@gdgdemo.org', role: 'Chapter Lead', status: 'Active', registrationsCount: 4, checkinsCount: 3 },
+    { id: 2, name: 'Deepika Kumar', email: 'deepika.k@college.edu', role: 'Organizer', status: 'Active', registrationsCount: 2, checkinsCount: 2 },
+    { id: 3, name: 'Suresh Raina', email: 'suresh.r@cricket.org', role: 'Member', status: 'Active', registrationsCount: 1, checkinsCount: 0 },
+    { id: 4, name: 'Jane Doe', email: 'jane.doe@gmail.com', role: 'Member', status: 'Pending', registrationsCount: 0, checkinsCount: 0 }
+  ]);
+  const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [roleFilter, setRoleFilter] = useState('All');
+  
+  // Selected Member for Profile Drawer
+  const [selectedMember, setSelectedMember] = useState(null);
 
   const fetchMembers = async () => {
-    if (!activeChapter) return;
     setLoading(true);
-    // Since member listings might not be directly exposed in CRUD endpoints or are scoped,
-    // we mock a set of members or pull analytics overview active users
-    const mockMembers = [
-      { id: 1, name: 'Karthik S', email: 'karthik@gdgdemo.org', role: 'Chapter Lead', status: 'Active' },
-      { id: 2, name: 'Deepika Kumar', email: 'deepika.k@college.edu', role: 'Organizer', status: 'Active' },
-      { id: 3, name: 'Suresh Raina', email: 'suresh.r@cricket.org', role: 'Member', status: 'Active' },
-      { id: 4, name: 'Jane Doe', email: 'jane.doe@gmail.com', role: 'Member', status: 'Pending' },
-      { id: 5, name: 'Rahul Dravid', email: 'rahul.d@wall.com', role: 'Organizer', status: 'Active' }
-    ];
-
-    setTimeout(() => {
-      setMembers(mockMembers);
-      setLoading(false);
-    }, 400);
+    setTimeout(() => setLoading(false), 200);
   };
 
-  useEffect(() => {
-    fetchMembers();
-  }, [activeChapter]);
+  const handleRoleChange = (memberId, newRole) => {
+    setMembers(prev => prev.map(m => m.id === memberId ? { ...m, role: newRole } : m));
+    alert(`Member role successfully updated to: ${newRole}`);
+  };
 
-  const filteredMembers = members.filter(m => 
-    m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    m.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filtered = members.filter(m => {
+    const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          m.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = roleFilter === 'All' || m.role === roleFilter;
+    return matchesSearch && matchesRole;
+  });
 
   return (
     <DashboardShell sectionTitle="Members">
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
-          <h3 style={{ margin: 0 }}>Chapter Members List</h3>
-          
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            <div style={{ position: 'relative' }}>
+      <div className="gdg-grid-2-1">
+        
+        {/* Left Column (Directory list) */}
+        <DashboardCard title="Chapter Members Directory">
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '16px', alignItems: 'center' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
               <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--gdg-text-secondary)' }} />
               <input 
-                type="text"
+                type="text" 
                 placeholder="Search by name or email..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                style={{ padding: '6px 12px 6px 30px', borderRadius: '4px', border: '1px solid var(--gdg-border)', fontSize: '13px', width: '220px' }}
+                style={{ padding: '6px 12px 6px 30px', borderRadius: '4px', border: '1px solid var(--gdg-border)', fontSize: '13px', width: '100%', boxSizing: 'border-box' }}
               />
             </div>
-            <button className="gdg-share-icon-btn" onClick={fetchMembers} title="Refresh"><RefreshCw size={14} /></button>
+            <select 
+              value={roleFilter} 
+              onChange={e => setRoleFilter(e.target.value)}
+              className="gdg-header-dropdown"
+            >
+              <option value="All">All Roles</option>
+              <option value="Chapter Lead">Chapter Lead</option>
+              <option value="Organizer">Organizer</option>
+              <option value="Member">Member</option>
+            </select>
           </div>
-        </div>
 
-        {loading ? (
-          <div className="gdg-spinner-container">
-            <div className="gdg-spinner"></div>
-            <span>Loading chapter members directory...</span>
-          </div>
-        ) : (
-          <div style={{ border: '1px solid var(--gdg-border)', borderRadius: '8px', overflow: 'hidden' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '14px' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#F1F3F4', borderBottom: '1px solid var(--gdg-border)', fontSize: '12px', fontWeight: 'bold', color: 'var(--gdg-text-secondary)' }}>
-                  <th style={{ padding: '12px 16px' }}>NAME</th>
-                  <th style={{ padding: '12px 16px' }}>EMAIL ADDRESS</th>
-                  <th style={{ padding: '12px 16px' }}>CHAPTER ROLE</th>
-                  <th style={{ padding: '12px 16px' }}>STATUS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredMembers.map(m => (
-                  <tr key={m.id} style={{ borderBottom: '1px solid var(--gdg-border)', transition: 'background 0.2s' }} className="hover:bg-gray-50">
-                    <td style={{ padding: '12px 16px', fontWeight: 500 }}>{m.name}</td>
-                    <td style={{ padding: '12px 16px', color: 'var(--gdg-text-secondary)' }}>{m.email}</td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span className="role-tag" style={{ 
-                        backgroundColor: m.role === 'Chapter Lead' ? '#E8F0FE' : m.role === 'Organizer' ? '#FEF7E0' : '#F1F3F4',
-                        color: m.role === 'Chapter Lead' ? 'var(--gdg-blue)' : m.role === 'Organizer' ? '#B06000' : 'var(--gdg-text-secondary)',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        fontSize: '11px',
-                        fontWeight: 'bold'
-                      }}>
-                        {m.role}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 16px' }}>
-                      <span className={`gdg-badge ${m.status === 'Active' ? 'gdg-badge-active' : 'gdg-badge-draft'}`}>
-                        <span className={`gdg-dot ${m.status === 'Active' ? 'gdg-dot-active' : 'gdg-dot-draft'}`} />
-                        {m.status}
-                      </span>
-                    </td>
+          {loading ? (
+            <div className="gdg-spinner-container"><div className="gdg-spinner"></div></div>
+          ) : (
+            <div style={{ border: '1px solid var(--gdg-border)', borderRadius: '8px', overflow: 'hidden' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
+                <thead>
+                  <tr style={{ backgroundColor: '#F1F3F4', borderBottom: '1px solid var(--gdg-border)', fontWeight: 'bold', color: 'var(--gdg-text-secondary)' }}>
+                    <th style={{ padding: '10px 16px' }}>NAME</th>
+                    <th style={{ padding: '10px 16px' }}>CHAPTER ROLE</th>
+                    <th style={{ padding: '10px 16px' }}>ROLE CONTROL</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </thead>
+                <tbody>
+                  {filtered.map(m => (
+                    <tr 
+                      key={m.id} 
+                      style={{ borderBottom: '1px solid var(--gdg-border)', cursor: 'pointer', background: selectedMember?.id === m.id ? '#E8F0FE' : '#FFF' }}
+                      onClick={() => setSelectedMember(m)}
+                    >
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{ fontWeight: 500, display: 'block' }}>{m.name}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>{m.email}</span>
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span className="role-tag" style={{ fontSize: '10px' }}>{m.role}</span>
+                      </td>
+                      <td style={{ padding: '12px 16px' }} onClick={e => e.stopPropagation()}>
+                        <select 
+                          value={m.role} 
+                          onChange={e => handleRoleChange(m.id, e.target.value)}
+                          style={{ fontSize: '12px', padding: '2px 4px', borderRadius: '4px' }}
+                        >
+                          <option value="Platform Admin">Platform Admin</option>
+                          <option value="Chapter Lead">Chapter Lead</option>
+                          <option value="Organizer">Organizer</option>
+                          <option value="Speaker">Speaker</option>
+                          <option value="Member">Member</option>
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </DashboardCard>
+
+        {/* Right Column (Participation profiles) */}
+        <DashboardCard title="Member Workspace Profile Overview">
+          {selectedMember ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 500 }}>{selectedMember.name}</h3>
+                <span style={{ fontSize: '13px', color: 'var(--gdg-text-secondary)' }}>{selectedMember.email}</span>
+                <div style={{ marginTop: '8px' }}>
+                  <span className="role-tag">{selectedMember.role}</span>
+                </div>
+              </div>
+
+              <div style={{ borderTop: '1px solid var(--gdg-border)', paddingTop: '16px' }}>
+                <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: 'var(--gdg-text-secondary)', textTransform: 'uppercase' }}>Participation metrics</h4>
+                <div className="gdg-stat-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                  <div className="stat-card" style={{ padding: '10px', background: '#F8F9FA', border: '1px solid var(--gdg-border)', borderRadius: '6px', textAlign: 'center' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--gdg-text-secondary)' }}>REGISTRATIONS</span>
+                    <h5 style={{ margin: '4px 0 0 0', fontSize: '20px', color: 'var(--gdg-blue)' }}>{selectedMember.registrationsCount}</h5>
+                  </div>
+                  <div className="stat-card" style={{ padding: '10px', background: '#F8F9FA', border: '1px solid var(--gdg-border)', borderRadius: '6px', textAlign: 'center' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--gdg-text-secondary)' }}>CHECK-INS</span>
+                    <h5 style={{ margin: '4px 0 0 0', fontSize: '20px', color: 'var(--gdg-blue)' }}>{selectedMember.checkinsCount}</h5>
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ borderTop: '1px solid var(--gdg-border)', paddingTop: '16px' }}>
+                <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: 'var(--gdg-text-secondary)', textTransform: 'uppercase' }}>Event History Logs</h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ padding: '8px', border: '1px solid var(--gdg-border)', borderRadius: '6px', fontSize: '12px', background: '#F8F9FA' }}>
+                    <strong>Era of Infinite Software</strong>
+                    <p style={{ margin: '2px 0 0 0', color: 'var(--gdg-text-secondary)' }}>Checked in at entrance</p>
+                  </div>
+                  <div style={{ padding: '8px', border: '1px solid var(--gdg-border)', borderRadius: '6px', fontSize: '12px', background: '#F8F9FA' }}>
+                    <strong>Vite & Rollup workshop</strong>
+                    <p style={{ margin: '2px 0 0 0', color: 'var(--gdg-text-secondary)' }}>Seat Confirmed</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <p style={{ fontStyle: 'italic', color: 'var(--gdg-text-secondary)', textAlign: 'center', fontSize: '13px' }}>
+              Select a member from the directory to review event histories.
+            </p>
+          )}
+        </DashboardCard>
+
       </div>
     </DashboardShell>
   );

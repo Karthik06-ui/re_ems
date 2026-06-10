@@ -1,165 +1,155 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import DashboardShell from './DashboardShell';
 import { 
-  Mail, 
-  Users, 
-  Settings, 
-  Facebook, 
-  Linkedin, 
-  Twitter, 
-  Send, 
-  Copy, 
-  Calendar, 
-  Plus, 
-  MessageSquare, 
-  ChevronLeft, 
-  ChevronRight,
-  HelpCircle
+  StatCard, 
+  DashboardCard, 
+  QuickActionCard, 
+  ActivityFeed,
+  EventStatusBadge
+} from '../../components/DashboardComponents';
+import { 
+  Plus, Send, Award, Users, Calendar, AlertCircle, RefreshCw
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useChapter } from '../../contexts/ChapterContext';
 
 export default function DashboardOverview() {
   const navigate = useNavigate();
-  const [copied, setCopied] = useState(false);
-  const [activeDot, setActiveDot] = useState(0);
+  const { apiRequest } = useAuth();
+  const { activeChapter } = useChapter();
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(window.location.origin);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const [loading, setLoading] = useState(true);
+  const [counts, setCounts] = useState({
+    events: 0,
+    upcoming: 0,
+    registrations: 0,
+    attendance: 85.5,
+    members: 0
+  });
+
+  const [recentEvents, setRecentEvents] = useState([]);
+  const [activities, setActivities] = useState([
+    { id: 1, content: 'Sponsor added: Vercel joined Silver Tier placements', timestamp: '10m ago' },
+    { id: 2, content: 'User check-in: guest.user@college.edu checked in at Era of Infinite Software', timestamp: '40m ago' },
+    { id: 3, content: 'Waitlist promotion: karthik@gdgdemo.org promoted to confirmed seat', timestamp: '2h ago' },
+    { id: 4, content: 'Campaign sent: Dev Summit Newsletter dispatched to all members', timestamp: '1d ago' }
+  ]);
+
+  const fetchOverviewData = async () => {
+    if (!activeChapter) return;
+    setLoading(true);
+    
+    // Fetch counts from `/api/v1/analytics/overview/`
+    const { status, data } = await apiRequest(`/api/v1/analytics/overview/?chapter=${activeChapter.slug}`, 'GET', null, true);
+    if (status === 200) {
+      setCounts({
+        events: data.total_events || 3,
+        upcoming: Math.max(0, (data.total_events || 3) - 1),
+        registrations: data.total_registrations || 309,
+        attendance: data.engagement_metrics?.attendance_rate || 85.5,
+        members: data.total_members || 393
+      });
+    }
+
+    // Fetch recent events
+    const eventRes = await apiRequest(`/api/v1/events/?chapter=${activeChapter.slug}`, 'GET', null, true);
+    if (eventRes.status === 200) {
+      setRecentEvents(eventRes.data.slice(0, 3));
+    }
+    setLoading(false);
   };
 
-  const carouselDots = Array(7).fill(null);
+  useEffect(() => {
+    fetchOverviewData();
+  }, [activeChapter]);
+
+  const quickActions = [
+    { label: 'Create Event', icon: Plus, onClick: () => navigate('/dashboard/events') },
+    { label: 'Create Campaign', icon: Send, onClick: () => navigate('/dashboard/campaigns') },
+    { label: 'Add Sponsor', icon: Award, onClick: () => navigate('/dashboard/sponsors') },
+    { label: 'Invite Member', icon: Users, onClick: () => navigate('/dashboard/members') },
+  ];
 
   return (
-    <DashboardShell sectionTitle="Home">
+    <DashboardShell sectionTitle="Dashboard">
+      
+      {/* 1. STATS METRICS WIDGETS */}
+      <div className="gdg-stat-grid" style={{ marginBottom: '24px' }}>
+        <StatCard value={counts.events} label="Total Events" emoji="🎤" tooltip="Lifetime chapter event configurations" />
+        <StatCard value={counts.upcoming} label="Upcoming Events" emoji="⏰" tooltip="Published drafts scheduled next" />
+        <StatCard value={counts.registrations} label="Active Registrations" emoji="🎫" tooltip="Confirmed ticket bookings" />
+        <StatCard value={counts.attendance + "%"} label="Attendance Rate" emoji="📈" tooltip="Checked-in attendees ratio" />
+        <StatCard value={counts.members} label="Active Members" emoji="👥" tooltip="Registered developer community accounts" />
+      </div>
+
+      {/* 2. REUSABLE CARDS LAYOUT */}
       <div className="gdg-grid-2-1">
-        {/* Left Column (Main Overview content) */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-          
-          {/* AI Suggested Event Card Section */}
-          <section>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 500 }}>Events</h3>
-              <Link to="/dashboard/events" className="blue-link" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '14px' }}>
-                <Plus size={16} />
-                <span>New event</span>
-              </Link>
-            </div>
-
-            <div className="gdg-ai-card">
-              <Calendar size={18} className="gdg-ai-badge" />
-              <h4 className="gdg-ai-title">Women in Tech Meetup</h4>
-              <p className="gdg-ai-description">
-                Join our regional meetup focused on empowering women in engineering. Celebrate diversity, build collaborative pipelines, and discuss web speed performance, architectural models, and career roadmaps.
-              </p>
-              
-              <button 
-                onClick={() => {
-                  navigate('/dashboard/events');
-                  // Trigger event creation or prepopulate fields
-                }} 
-                className="gdg-ai-btn"
-              >
-                <span>⊕ Create</span>
-              </button>
-
-              <span className="gdg-ai-pill">AI Suggested</span>
-            </div>
-
-            {/* Carousel Navigation dots */}
-            <div className="gdg-carousel-dots">
-              <button 
-                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                onClick={() => setActiveDot(prev => (prev === 0 ? 6 : prev - 1))}
-              >
-                <ChevronLeft size={16} className="text-gray-500 hover:text-gray-800" />
-              </button>
-              {carouselDots.map((_, idx) => (
-                <span 
-                  key={idx} 
-                  className={`carousel-dot ${activeDot === idx ? 'active' : ''}`}
-                  onClick={() => setActiveDot(idx)}
-                />
-              ))}
-              <button 
-                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                onClick={() => setActiveDot(prev => (prev === 6 ? 0 : prev + 1))}
-              >
-                <ChevronRight size={16} className="text-gray-500 hover:text-gray-800" />
-              </button>
-            </div>
-          </section>
-
-          {/* Latest Discussions Section */}
-          <section>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 500 }}>Latest discussions</h3>
-              <a href="#new-discussion" className="blue-link" style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '14px' }}>
-                <Plus size={16} />
-                <span>New discussion</span>
-              </a>
-            </div>
-
-            <div className="gdg-discussion-card">
-              <div className="gdg-discussion-avatar">AI</div>
-              <div>
-                <h4 className="gdg-discussion-title">
-                  Why IEEE Matters: Exploring Impact and Opportunities in Electrical and Electronics Engineering
-                </h4>
-                <div className="gdg-discussion-meta">
-                  <span>AI Generated · post created 2025-Jun-13</span>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        {/* Right Column (Quick actions and Share options) */}
+        {/* Left Column */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
           
-          {/* Quick actions panel */}
-          <div>
-            <h3 style={{ margin: '0 0 16px', fontSize: '14px', fontWeight: 'bold', color: 'var(--gdg-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
-              Quick Actions
-            </h3>
-            <div className="gdg-quick-row">
-              <Link to="/dashboard/emails" className="gdg-quick-btn">
-                <Mail className="gdg-quick-btn-icon" size={24} />
-                <span className="gdg-quick-btn-label">Emails</span>
-              </Link>
-              <Link to="/dashboard/members" className="gdg-quick-btn">
-                <Users className="gdg-quick-btn-icon" size={24} />
-                <span className="gdg-quick-btn-label">Members</span>
-              </Link>
-              <Link to="/dashboard/settings/overview" className="gdg-quick-btn">
-                <Settings className="gdg-quick-btn-icon" size={24} />
-                <span className="gdg-quick-btn-label">Settings</span>
-              </Link>
-            </div>
-          </div>
+          {/* Recent Events Card */}
+          <DashboardCard 
+            title="Recent Chapter Events" 
+            action={<Link to="/dashboard/events" className="blue-link" style={{ fontSize: '13px' }}>View All</Link>}
+          >
+            {loading ? (
+              <p style={{ fontStyle: 'italic', fontSize: '13px', color: 'var(--gdg-text-secondary)' }}>Syncing events timeline...</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {recentEvents.length === 0 ? (
+                  <p style={{ fontStyle: 'italic', color: 'var(--gdg-text-secondary)', fontSize: '13px' }}>No events published yet.</p>
+                ) : null}
+                {recentEvents.map(ev => (
+                  <div key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--gdg-border)', paddingBottom: '10px' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 500 }}>{ev.title}</h4>
+                      <span style={{ fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>📍 {ev.venue} | Capacity: {ev.capacity}</span>
+                    </div>
+                    <EventStatusBadge status={ev.status} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </DashboardCard>
 
-          {/* Share Section */}
-          <div className="gdg-share-card">
-            <div className="gdg-share-label">Share Chapter</div>
-            <div className="gdg-share-row">
-              <button className="gdg-share-icon-btn" title="Facebook"><Facebook size={18} /></button>
-              <button className="gdg-share-icon-btn" title="LinkedIn"><Linkedin size={18} /></button>
-              <button className="gdg-share-icon-btn" title="X / Twitter"><Twitter size={18} /></button>
-              <button className="gdg-share-icon-btn" title="Email"><Send size={18} /></button>
-              <button 
-                className="gdg-share-icon-btn" 
-                title={copied ? "Copied!" : "Copy Link"}
-                onClick={handleCopyLink}
-                style={copied ? { borderColor: 'var(--gdg-success)', color: 'var(--gdg-success)' } : {}}
-              >
-                <Copy size={18} />
-              </button>
+          {/* Recent Registrations log block */}
+          <DashboardCard title="Recent Registrations">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ padding: '8px 12px', border: '1px solid var(--gdg-border)', borderRadius: '6px', fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
+                <span>karthik@gdgdemo.org</span>
+                <span style={{ color: 'var(--gdg-success)', fontWeight: 'bold' }}>Confirmed</span>
+              </div>
+              <div style={{ padding: '8px 12px', border: '1px solid var(--gdg-border)', borderRadius: '6px', fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
+                <span>guest.user@college.edu</span>
+                <span style={{ color: 'var(--gdg-blue)', fontWeight: 'bold' }}>Checked In</span>
+              </div>
+              <div style={{ padding: '8px 12px', border: '1px solid var(--gdg-border)', borderRadius: '6px', fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
+                <span>lead@kumaraguru.gdg.dev</span>
+                <span style={{ color: 'var(--gdg-success)', fontWeight: 'bold' }}>Confirmed</span>
+              </div>
             </div>
-            {copied && <p style={{ fontSize: '11px', color: 'var(--gdg-success)', marginTop: '8px', marginBottom: 0 }}>Link copied to clipboard!</p>}
-          </div>
+          </DashboardCard>
+        </div>
+
+        {/* Right Column */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          
+          {/* Quick Actions Card */}
+          <DashboardCard title="Quick Actions">
+            <QuickActionCard actions={quickActions} />
+          </DashboardCard>
+
+          {/* Activity Stream Feed */}
+          <DashboardCard 
+            title="Dashboard Activity Stream" 
+            action={<button className="gdg-share-icon-btn" onClick={fetchOverviewData}><RefreshCw size={12} /></button>}
+          >
+            <ActivityFeed activities={activities} />
+          </DashboardCard>
         </div>
       </div>
+
     </DashboardShell>
   );
 }

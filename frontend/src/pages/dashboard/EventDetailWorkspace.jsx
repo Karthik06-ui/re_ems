@@ -2,26 +2,35 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import DashboardShell from './DashboardShell';
 import { 
-  BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  AreaChart, Area, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { 
-  ChevronLeft, RefreshCw, MoreVertical, CheckCircle, Info, UserCheck, 
-  MapPin, Clock, Shield, Plus, Heart, HelpCircle
+  ChevronLeft, RefreshCw, MoreVertical, Edit, UserCheck, Plus, Trash2, 
+  ArrowUp, ArrowDown, Download, CheckSquare, MessageSquare, Send, Award, BookOpen
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { 
+  RegistrationTable, 
+  WaitlistTable, 
+  StatCard, 
+  DashboardCard, 
+  EventStatusBadge
+} from '../../components/DashboardComponents';
 
-// Mock charts data for event telemetry
-const ticketData = [
-  { name: 'General Admission', count: 142 },
-  { name: 'VIP Pass', count: 25 },
-  { name: 'Virtual Stream', count: 15 }
+// Mock Registration Trend Data
+const registrationTrends = [
+  { name: 'Day 1', count: 10 },
+  { name: 'Day 2', count: 32 },
+  { name: 'Day 3', count: 78 },
+  { name: 'Day 4', count: 145 },
+  { name: 'Day 5', count: 182 }
 ];
 
-const checkinTimeData = [
-  { time: '12:00', count: 90 },
-  { time: '12:30', count: 25 },
-  { time: '13:00', count: 8 },
-  { time: '13:30', count: 4 }
+const registrationSourceData = [
+  { name: 'Email Campaign', count: 95 },
+  { name: 'Sponsor Referrals', count: 42 },
+  { name: 'Slack/Discord', count: 30 },
+  { name: 'Organic', count: 15 }
 ];
 
 export default function EventDetailWorkspace() {
@@ -31,78 +40,191 @@ export default function EventDetailWorkspace() {
 
   const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [attendees, setAttendees] = useState([]);
-  const [waitlist, setWaitlist] = useState([]);
-  const [checkinEmail, setCheckinEmail] = useState('');
-  const [checkinMsg, setCheckinMsg] = useState('');
-  const [checkinErr, setCheckinErr] = useState('');
+  
+  // Registration list
+  const [registrations, setRegistrations] = useState([
+    { email: 'karthik@gdgdemo.org', ticket_type: 'General Admission', date: '2026-Jun-09', status: 'confirmed' },
+    { email: 'guest.user@college.edu', ticket_type: 'General Admission', date: '2026-Jun-09', status: 'checked_in' },
+    { email: 'developer.lead@kumaraguru.edu', ticket_type: 'VIP Pass', date: '2026-Jun-10', status: 'confirmed' }
+  ]);
 
-  // Editing parameters
-  const [editTitle, setEditTitle] = useState('');
-  const [editVenue, setEditVenue] = useState('');
-  const [editCapacity, setEditCapacity] = useState(100);
-  const [editStatus, setEditStatus] = useState('draft');
+  // Waitlist list
+  const [waitlist, setWaitlist] = useState([
+    { position: 1, email: 'waitlist.one@college.edu', date: '2026-Jun-10' },
+    { position: 2, email: 'waitlist.two@college.edu', date: '2026-Jun-10' }
+  ]);
+
+  // Agenda Sessions list
+  const [sessions, setSessions] = useState([
+    { id: 1, title: 'Keynote: Era of Infinite Software', duration: '40m', track: 'Keynote', speaker: 'Dr. Jane Smith' },
+    { id: 2, title: 'Optimizing Vite & Rollup Bundling', duration: '30m', track: 'Frontend', speaker: 'Deepika Kumar' }
+  ]);
+
+  // Session form inputs
+  const [sesTitle, setSesTitle] = useState('');
+  const [sesDuration, setSesDuration] = useState('30m');
+  const [sesTrack, setSesTrack] = useState('Frontend');
+  const [sesSpeaker, setSesSpeaker] = useState('Dr. Jane Smith');
+
+  // Speakers list
+  const [speakers, setSpeakers] = useState([
+    { id: 1, name: 'Dr. Jane Smith', bio: 'Principal Web Architect & Google Developer Expert', avatar: 'https://i.pravatar.cc/100?img=1' },
+    { id: 2, name: 'Deepika Kumar', bio: 'Staff Engineer & Chapter Lead at GDG Coimbatore', avatar: 'https://i.pravatar.cc/100?img=2' }
+  ]);
+  const [spName, setSpName] = useState('');
+  const [spBio, setSpBio] = useState('');
+
+  // Survey Questions list
+  const [surveyQuestions, setSurveyQuestions] = useState([
+    { id: 1, text: 'What is your primary programming language?', type: 'Multiple Choice' },
+    { id: 2, text: 'What do you hope to learn in this workshop?', type: 'Free Text' }
+  ]);
+  const [newQuestionText, setNewQuestionText] = useState('');
+  const [newQuestionType, setNewQuestionType] = useState('Multiple Choice');
+
+  // Details Tab Form states
+  const [title, setTitle] = useState('');
+  const [venue, setVenue] = useState('');
+  const [capacity, setCapacity] = useState(100);
+  const [statusVal, setStatusVal] = useState('draft');
   const [saving, setSaving] = useState(false);
 
-  const fetchEventData = async () => {
+  // Communications announcements list
+  const [announcements, setAnnouncements] = useState([
+    { id: 1, subject: 'Event Seating Directions', date: '2026-Jun-10', recipients: 'All Confirmed Attendees' }
+  ]);
+  const [annSubject, setAnnSubject] = useState('');
+  const [annBody, setAnnBody] = useState('');
+
+  const fetchWorkspaceDetails = async () => {
     setLoading(true);
-    // Fetch Event Details
-    const eventRes = await apiRequest(`/api/v1/events/${id}/`, 'GET', null, false);
-    if (eventRes.status === 200) {
-      const data = eventRes.data;
+    const { status, data } = await apiRequest(`/api/v1/events/${id}/`, 'GET', null, false);
+    if (status === 200) {
       setEvent(data);
-      setEditTitle(data.title);
-      setEditVenue(data.venue);
-      setEditCapacity(data.capacity);
-      setEditStatus(data.status);
+      setTitle(data.title);
+      setVenue(data.venue);
+      setCapacity(data.capacity);
+      setStatusVal(data.status);
     }
-    
-    // Fetch registered attendees & waitlists
-    // Note: Django API returns registered users under registrations and waitlists
-    // We can pull registrations list by filtering /api/v1/events/ or checking status
-    // For high fidelity, we search registries via events table or generate mock entries if none exist
     setLoading(false);
   };
 
   useEffect(() => {
-    fetchEventData();
+    fetchWorkspaceDetails();
   }, [id]);
 
   const handleUpdateDetails = async (e) => {
     e.preventDefault();
     setSaving(true);
     const { status } = await apiRequest(`/api/v1/events/${id}/`, 'PATCH', {
-      title: editTitle,
-      venue: editVenue,
-      capacity: parseInt(editCapacity),
-      status: editStatus
+      title,
+      venue,
+      capacity: parseInt(capacity),
+      status: statusVal
     }, true);
 
     if (status === 200) {
-      alert('Event details updated successfully!');
-      fetchEventData();
+      alert('Event parameters saved successfully!');
+      fetchWorkspaceDetails();
     } else {
-      alert('Failed to update event details.');
+      alert('Failed to update event settings.');
     }
     setSaving(false);
   };
 
-  const handleCheckinSubmit = async (emailToSubmit) => {
-    setCheckinMsg('');
-    setCheckinErr('');
-    if (!emailToSubmit) return;
-
-    const { status, data } = await apiRequest(`/api/v1/events/${id}/checkin/`, 'POST', {
+  // Checkin Attendee
+  const handleCheckin = async (emailToSubmit) => {
+    const { status } = await apiRequest(`/api/v1/events/${id}/checkin/`, 'POST', {
       email: emailToSubmit
     }, true);
 
     if (status === 200) {
-      setCheckinMsg(`Checked in successfully: ${emailToSubmit}`);
-      setCheckinEmail('');
-      fetchEventData();
+      setRegistrations(prev => prev.map(r => r.email === emailToSubmit ? { ...r, status: 'checked_in' } : r));
+      alert(`Registrant successfully checked in: ${emailToSubmit}`);
     } else {
-      setCheckinErr(data.detail || 'Attendee check-in failed.');
+      alert('Check-in failed. Please verify user status.');
     }
+  };
+
+  // Promote registrant from waitlist
+  const handlePromoteAttendee = async (emailToPromote) => {
+    // Call registration endpoint (will promote FIFO)
+    const { status } = await apiRequest(`/api/v1/events/${id}/register/`, 'POST', {}, true);
+    if (status === 201 || status === 202) {
+      // Simulate frontend shift
+      setWaitlist(prev => prev.filter(w => w.email !== emailToPromote).map((w, idx) => ({ ...w, position: idx + 1 })));
+      setRegistrations(prev => [...prev, { email: emailToPromote, ticket_type: 'General Admission', date: '2026-Jun-10', status: 'confirmed' }]);
+      alert(`Seat promoted to Confirmed: ${emailToPromote}`);
+    } else {
+      alert('Promotion failed.');
+    }
+  };
+
+  // Agenda Session Actions
+  const handleAddSession = (e) => {
+    e.preventDefault();
+    if (!sesTitle) return;
+    const newSes = {
+      id: Date.now(),
+      title: sesTitle,
+      duration: sesDuration,
+      track: sesTrack,
+      speaker: sesSpeaker
+    };
+    setSessions(prev => [...prev, newSes]);
+    setSesTitle('');
+  };
+
+  const handleMoveSession = (idx, direction) => {
+    const nextIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (nextIdx < 0 || nextIdx >= sessions.length) return;
+    const reordered = [...sessions];
+    const temp = reordered[idx];
+    reordered[idx] = reordered[nextIdx];
+    reordered[nextIdx] = temp;
+    setSessions(reordered);
+  };
+
+  // Speaker Add
+  const handleAddSpeaker = (e) => {
+    e.preventDefault();
+    if (!spName) return;
+    const newSp = {
+      id: Date.now(),
+      name: spName,
+      bio: spBio,
+      avatar: 'https://i.pravatar.cc/100?img=' + (speakers.length + 3)
+    };
+    setSpeakers(prev => [...prev, newSp]);
+    setSpName('');
+    setSpBio('');
+  };
+
+  // Survey Add Question
+  const handleAddQuestion = (e) => {
+    e.preventDefault();
+    if (!newQuestionText) return;
+    const newQ = {
+      id: Date.now(),
+      text: newQuestionText,
+      type: newQuestionType
+    };
+    setSurveyQuestions(prev => [...prev, newQ]);
+    setNewQuestionText('');
+  };
+
+  // CSV Export Mock
+  const handleExportCSV = () => {
+    const csvContent = "data:text/csv;charset=utf-8," 
+      + ["EMAIL,TICKET TYPE,STATUS"].join(",") + "\n"
+      + registrations.map(r => `${r.email},${r.ticket_type},${r.status}`).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `registrations_${id}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   if (loading && !event) {
@@ -110,314 +232,406 @@ export default function EventDetailWorkspace() {
       <DashboardShell sectionTitle="Events">
         <div className="gdg-spinner-container">
           <div className="gdg-spinner"></div>
-          <span>Loading event details workspace...</span>
+          <span>Syncing workspace timelines...</span>
         </div>
       </DashboardShell>
     );
   }
 
-  if (!event) {
-    return (
-      <DashboardShell sectionTitle="Events">
-        <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
-          <p style={{ color: 'var(--gdg-error)' }}>Event details could not be found.</p>
-          <Link to="/dashboard/events" className="blue-link">Back to Events List</Link>
-        </div>
-      </DashboardShell>
-    );
-  }
-
-  const tabs = [
-    'overview', 'details', 'people', 'registrations', 'waitlist', 
-    'surveys', 'emails', 'cohost', 'sponsors', 'partners', 
-    'startups', 'recordings', 'wrapup', 'analytics'
+  const workspaceTabs = [
+    'overview', 'details', 'agenda', 'speakers', 'registrations', 
+    'waitlist', 'surveys', 'sponsors', 'communications', 'analytics', 'wrapup'
   ];
 
   return (
     <DashboardShell sectionTitle="Events">
       
-      {/* 1. BREADCRUMBS + TITLE HEADER */}
+      {/* 1. TITLE BREADCRUMBS HEADER */}
       <div style={{ marginBottom: '20px' }}>
         <Link to="/dashboard/events" className="blue-link" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', marginBottom: '8px' }}>
           <ChevronLeft size={16} />
           <span>Events</span>
         </Link>
         
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
           <div>
             <h2 style={{ fontSize: '24px', fontWeight: 500, margin: '0 0 6px 0' }}>{event.title}</h2>
             <p style={{ color: 'var(--gdg-text-secondary)', fontSize: '14px', margin: 0 }}>📍 {event.venue} | ⏰ {new Date(event.start_time).toLocaleString()}</p>
           </div>
           
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <span className={`gdg-badge gdg-badge-${event.status.toLowerCase()}`}>
-              <span className={`gdg-dot gdg-dot-${event.status.toLowerCase()}`} />
-              {event.status.toUpperCase()}
-            </span>
-            <Link to={`/events/${event.id}`} className="view-page-link">👁 View page</Link>
+            <EventStatusBadge status={event.status} />
           </div>
         </div>
       </div>
 
-      {/* 2. TAB NAVIGATION */}
-      <div className="gdg-tabs-container" style={{ marginBottom: '24px' }}>
-        {tabs.map(t => (
+      {/* 2. SUB NAVIGATION TABS */}
+      <div className="gdg-tabs-container">
+        {workspaceTabs.map(t => (
           <button 
             key={t}
             className={`gdg-tab ${tab === t ? 'active' : ''}`}
             onClick={() => navigate(`/dashboard/events/${id}/${t}`)}
+            style={{ textTransform: 'capitalize' }}
           >
-            {t.charAt(0).toUpperCase() + t.slice(1)}
+            {t === 'wrapup' ? 'Wrap Up' : t}
           </button>
         ))}
       </div>
 
-      {/* 3. TABS CONTAINER DETAILS */}
-      <div className="gdg-event-workspace-content">
-        
+      {/* 3. TABS CONTENT */}
+      <div style={{ marginTop: '16px' }}>
+
         {/* OVERVIEW TAB */}
         {tab === 'overview' && (
           <div className="gdg-grid-2-1">
-            <div className="card">
-              <h3>Event Description</h3>
-              <p style={{ fontSize: '14px', lineHeight: 1.6, color: 'var(--gdg-text-secondary)' }}>{event.description}</p>
+            <DashboardCard title="Event Summary Description">
+              <p style={{ fontSize: '14px', lineHeight: 1.6, color: 'var(--gdg-text-secondary)', margin: '0 0 20px 0' }}>{event.description}</p>
               
-              <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <MapPin size={18} className="text-gray-500" />
-                  <div>
-                    <strong>Venue Location</strong>
-                    <p style={{ fontSize: '13px', color: 'var(--gdg-text-secondary)' }}>{event.venue}</p>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <Clock size={18} className="text-gray-500" />
-                  <div>
-                    <strong>Date & Time</strong>
-                    <p style={{ fontSize: '13px', color: 'var(--gdg-text-secondary)' }}>{new Date(event.start_time).toLocaleString()} ({event.timezone})</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="card">
-              <h3>Speakers Directory</h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {event.speakers?.length === 0 ? (
-                  <p style={{ fontSize: '13px', color: 'var(--gdg-text-secondary)' }}>No speakers assigned to this event yet.</p>
-                ) : null}
-                {event.speakers?.map(speaker => (
-                  <div key={speaker.id} style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', backgroundColor: '#E8F0FE', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'var(--gdg-blue)' }}>
-                      {speaker.name[0]}
-                    </div>
+              <h4 style={{ margin: '0 0 10px', fontSize: '13px', color: 'var(--gdg-text-secondary)', textTransform: 'uppercase' }}>Assigned Speakers</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {speakers.map(sp => (
+                  <div key={sp.id} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    <img src={sp.avatar} alt={sp.name} style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
                     <div>
-                      <h4 style={{ margin: 0, fontSize: '13px' }}>{speaker.name}</h4>
-                      <p style={{ margin: 0, fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>{speaker.bio}</p>
+                      <span style={{ fontSize: '13px', fontWeight: 500, display: 'block' }}>{sp.name}</span>
+                      <span style={{ fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>{sp.bio}</span>
                     </div>
                   </div>
                 ))}
               </div>
+            </DashboardCard>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <StatCard value={event.registration_count || 182} label="Confirmed Seats" emoji="🎫" />
+              <StatCard value={event.capacity} label="Total Seating Limit" emoji="📋" />
             </div>
           </div>
         )}
 
-        {/* DETAILS TAB (Form editor) */}
+        {/* DETAILS TAB */}
         {tab === 'details' && (
-          <div className="card" style={{ maxWidth: '700px' }}>
-            <h3>Modify Event Details</h3>
+          <DashboardCard title="Configure Event Details" className="max-w-xl">
             <form onSubmit={handleUpdateDetails} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="form-group">
-                <label>Event Title</label>
-                <input type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)} required />
+                <label>Title Name</label>
+                <input type="text" value={title} onChange={e => setTitle(e.target.value)} required />
               </div>
               <div className="form-grid">
                 <div className="form-group">
-                  <label>Venue / Location</label>
-                  <input type="text" value={editVenue} onChange={e => setEditVenue(e.target.value)} required />
+                  <label>Venue Location</label>
+                  <input type="text" value={venue} onChange={e => setVenue(e.target.value)} required />
                 </div>
                 <div className="form-group">
                   <label>Seating Capacity</label>
-                  <input type="number" value={editCapacity} onChange={e => setEditCapacity(parseInt(e.target.value))} required />
+                  <input type="number" value={capacity} onChange={e => setCapacity(parseInt(e.target.value))} required />
                 </div>
               </div>
               <div className="form-group">
-                <label>Event Status</label>
-                <select value={editStatus} onChange={e => setEditStatus(e.target.value)}>
+                <label>Lifecycle Status (State Machine)</label>
+                <select value={statusVal} onChange={e => setStatusVal(e.target.value)}>
                   <option value="draft">Draft</option>
                   <option value="published">Published</option>
+                  <option value="registration open">Registration Open</option>
+                  <option value="registration closed">Registration Closed</option>
                   <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                  <option value="hidden">Hidden</option>
+                  <option value="archived">Archived</option>
                 </select>
               </div>
-
-              <button className="btn btn-primary" type="submit" disabled={saving}>
-                {saving ? 'Saving changes...' : 'Save details'}
+              
+              <button className="btn btn-primary" type="submit" style={{ alignSelf: 'flex-start' }} disabled={saving}>
+                {saving ? 'Updating settings...' : 'Update Details'}
               </button>
             </form>
-          </div>
+          </DashboardCard>
         )}
 
-        {/* REGISTRATIONS TAB (Check-in list and manual input) */}
-        {tab === 'registrations' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Checkin form panel */}
-            <div className="card" style={{ maxWidth: '600px' }}>
-              <h3>Manual Attendee Check-In</h3>
-              <p style={{ fontSize: '13px', color: 'var(--gdg-text-secondary)', marginBottom: '16px' }}>
-                Enter the email address of a registered user to mark them as checked in.
-              </p>
-              
-              {checkinMsg && <div style={{ background: '#E6F4EA', color: 'var(--gdg-success)', padding: '10px', borderRadius: '4px', marginBottom: '12px', fontSize: '13px' }}>{checkinMsg}</div>}
-              {checkinErr && <div style={{ background: '#FCE8E6', color: 'var(--gdg-error)', padding: '10px', borderRadius: '4px', marginBottom: '12px', fontSize: '13px' }}>{checkinErr}</div>}
-
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <input 
-                  type="email" 
-                  placeholder="e.g. attendee@domain.com"
-                  value={checkinEmail}
-                  onChange={e => setCheckinEmail(e.target.value)}
-                  style={{ flex: 1, padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--gdg-border)', fontSize: '14px' }}
-                />
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => handleCheckinSubmit(checkinEmail)}
-                >
-                  <UserCheck size={16} />
-                  <span>Check-in</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Attendance checklist */}
-            <div className="card">
-              <h3>Attendee Attendance Records</h3>
-              <p style={{ color: 'var(--gdg-text-secondary)', fontSize: '13px' }}>
-                Total confirmed seating records matches: <strong>{event.registration_count} / {event.capacity}</strong>
-              </p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '16px' }}>
-                {event.registration_count === 0 ? (
-                  <p style={{ color: 'var(--gdg-text-secondary)', fontStyle: 'italic' }}>No attendee seat reservations found.</p>
-                ) : (
-                  <div style={{ border: '1px solid var(--gdg-border)', borderRadius: '6px', overflow: 'hidden' }}>
-                    <div style={{ background: '#F1F3F4', padding: '10px 16px', display: 'grid', gridTemplateColumns: '2fr 1fr', fontWeight: 'bold', fontSize: '12px' }}>
-                      <span>REGISTRANT EMAIL</span>
-                      <span>STATUS</span>
+        {/* AGENDA TAB */}
+        {tab === 'agenda' && (
+          <div className="gdg-grid-2-1">
+            {/* Session Builder */}
+            <DashboardCard title="Event Agenda Timeline slots">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {sessions.map((ses, idx) => (
+                  <div key={ses.id} style={{ border: '1px solid var(--gdg-border)', borderRadius: '6px', padding: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#F8F9FA' }}>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 500 }}>{ses.title}</h4>
+                      <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>
+                        Duration: {ses.duration} | Track: {ses.track} | Speaker: {ses.speaker}
+                      </p>
                     </div>
-                    {/* Display mock attendees to check-in */}
-                    {['karthik@gdgdemo.org', 'guest.user@college.edu', 'admin@communityplatform.com'].slice(0, event.registration_count).map(email => (
-                      <div key={email} style={{ padding: '12px 16px', display: 'grid', gridTemplateColumns: '2fr 1fr', alignItems: 'center', borderTop: '1px solid var(--gdg-border)', fontSize: '13px' }}>
-                        <span>{email}</span>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <span className="gdg-badge gdg-badge-active">
-                            <span className="gdg-dot gdg-dot-active" />
-                            Registered
-                          </span>
-                          <button 
-                            className="btn btn-secondary" 
-                            style={{ padding: '4px 8px', fontSize: '11px' }}
-                            onClick={() => handleCheckinSubmit(email)}
-                          >
-                            Mark Checkin
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                    {/* Ordering controls */}
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                      <button className="gdg-share-icon-btn" style={{ width: '24px', height: '24px' }} onClick={() => handleMoveSession(idx, 'up')} disabled={idx === 0}><ArrowUp size={12} /></button>
+                      <button className="gdg-share-icon-btn" style={{ width: '24px', height: '24px' }} onClick={() => handleMoveSession(idx, 'down')} disabled={idx === sessions.length - 1}><ArrowDown size={12} /></button>
+                      <button className="gdg-share-icon-btn" style={{ width: '24px', height: '24px', color: 'var(--gdg-error)' }} onClick={() => setSessions(prev => prev.filter(s => s.id !== ses.id))}><Trash2 size={12} /></button>
+                    </div>
                   </div>
-                )}
+                ))}
               </div>
-            </div>
+            </DashboardCard>
+
+            {/* Add Session */}
+            <DashboardCard title="Add Session Slot">
+              <form onSubmit={handleAddSession} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div className="form-group">
+                  <label>Session Title</label>
+                  <input type="text" value={sesTitle} onChange={e => setSesTitle(e.target.value)} required placeholder="e.g. Q&A Session" />
+                </div>
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>Duration</label>
+                    <input type="text" value={sesDuration} onChange={e => setSesDuration(e.target.value)} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Track assignment</label>
+                    <input type="text" value={sesTrack} onChange={e => setSesTrack(e.target.value)} required />
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Assign Speaker</label>
+                  <select value={sesSpeaker} onChange={e => setSesSpeaker(e.target.value)}>
+                    {speakers.map(sp => (
+                      <option key={sp.id} value={sp.name}>{sp.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <button className="btn btn-primary" type="submit">Add to Agenda</button>
+              </form>
+            </DashboardCard>
           </div>
         )}
 
-        {/* ANALYTICS TAB (Double Recharts and Metrics) */}
+        {/* SPEAKERS TAB */}
+        {tab === 'speakers' && (
+          <div className="gdg-grid-2-1">
+            <DashboardCard title="Speakers Directory">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {speakers.map(sp => (
+                  <div key={sp.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--gdg-border)', paddingBottom: '8px' }}>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <img src={sp.avatar} alt={sp.name} style={{ width: '32px', height: '32px', borderRadius: '50%' }} />
+                      <div>
+                        <span style={{ fontSize: '13px', fontWeight: 500 }}>{sp.name}</span>
+                        <span style={{ display: 'block', fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>{sp.bio}</span>
+                      </div>
+                    </div>
+                    <button className="gdg-share-icon-btn" style={{ color: 'var(--gdg-error)' }} onClick={() => setSpeakers(prev => prev.filter(s => s.id !== sp.id))}><Trash2 size={12} /></button>
+                  </div>
+                ))}
+              </div>
+            </DashboardCard>
+
+            <DashboardCard title="Invite Speaker">
+              <form onSubmit={handleAddSpeaker} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div className="form-group">
+                  <label>Speaker Name</label>
+                  <input type="text" value={spName} onChange={e => setSpName(e.target.value)} required />
+                </div>
+                <div className="form-group">
+                  <label>Biography Summary</label>
+                  <textarea value={spBio} onChange={e => setSpBio(e.target.value)} rows={3} required />
+                </div>
+                <button className="btn btn-primary" type="submit">Add Speaker</button>
+              </form>
+            </DashboardCard>
+          </div>
+        )}
+
+        {/* REGISTRATIONS TAB */}
+        {tab === 'registrations' && (
+          <DashboardCard title="Event Registrant Table">
+            <RegistrationTable 
+              registrations={registrations} 
+              onCheckin={handleCheckin}
+              onBulkCheckin={() => {
+                setRegistrations(prev => prev.map(r => ({ ...r, status: 'checked_in' })));
+                alert('All attendees successfully checked in!');
+              }}
+              onExport={handleExportCSV}
+            />
+          </DashboardCard>
+        )}
+
+        {/* WAITLIST TAB */}
+        {tab === 'waitlist' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="gdg-stat-grid">
+              <StatCard value={waitlist.length} label="Total Waitlisted" emoji="⏳" />
+              <StatCard value={waitlist.length > 0 ? "High Volume" : "Empty Queue"} label="Waitlist Status" emoji="📈" />
+            </div>
+
+            <DashboardCard title="Waitlist Queue Placement (FIFO)">
+              <WaitlistTable 
+                waitlist={waitlist}
+                onPromote={handlePromoteAttendee}
+              />
+            </DashboardCard>
+          </div>
+        )}
+
+        {/* SURVEYS TAB */}
+        {tab === 'surveys' && (
+          <div className="gdg-grid-2-1">
+            <DashboardCard title="Survey Questions Deck">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {surveyQuestions.map(q => (
+                  <div key={q.id} style={{ border: '1px solid var(--gdg-border)', borderRadius: '6px', padding: '12px', background: '#F8F9FA', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <span style={{ fontSize: '13px', fontWeight: 500 }}>{q.text}</span>
+                      <span style={{ display: 'block', fontSize: '11px', color: 'var(--gdg-blue)', marginTop: '2px', fontWeight: 'bold' }}>{q.type.toUpperCase()}</span>
+                    </div>
+                    <button className="gdg-share-icon-btn" style={{ color: 'var(--gdg-error)' }} onClick={() => setSurveyQuestions(prev => prev.filter(s => s.id !== q.id))}><Trash2 size={12} /></button>
+                  </div>
+                ))}
+              </div>
+            </DashboardCard>
+
+            <DashboardCard title="Add Survey Question">
+              <form onSubmit={handleAddQuestion} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div className="form-group">
+                  <label>Question Text</label>
+                  <input type="text" value={newQuestionText} onChange={e => setNewQuestionText(e.target.value)} required placeholder="e.g. Rate your experience" />
+                </div>
+                <div className="form-group">
+                  <label>Question Type</label>
+                  <select value={newQuestionType} onChange={e => setNewQuestionType(e.target.value)}>
+                    <option value="Multiple Choice">Multiple Choice</option>
+                    <option value="Free Text">Free Text</option>
+                    <option value="Star Rating">Star Rating (1-5)</option>
+                  </select>
+                </div>
+                <button className="btn btn-primary" type="submit">Add Question</button>
+              </form>
+            </DashboardCard>
+          </div>
+        )}
+
+        {/* SPONSORS TAB */}
+        {tab === 'sponsors' && (
+          <DashboardCard title="Event Sponsor Tier Placements">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+              <div style={{ border: '1px solid var(--gdg-border)', borderRadius: '6px', padding: '16px', background: '#FFF' }}>
+                <strong style={{ display: 'block', color: 'var(--gdg-blue)', fontSize: '11px', marginBottom: '8px' }}>GOLD PLACEMENT</strong>
+                <h4 style={{ margin: 0, fontSize: '15px' }}>Vercel Inc.</h4>
+              </div>
+              <div style={{ border: '1px solid var(--gdg-border)', borderRadius: '6px', padding: '16px', background: '#FFF' }}>
+                <strong style={{ display: 'block', color: 'var(--gdg-blue)', fontSize: '11px', marginBottom: '8px' }}>SILVER PLACEMENT</strong>
+                <h4 style={{ margin: 0, fontSize: '15px' }}>JetBrains</h4>
+              </div>
+              <div style={{ border: '1px dashed var(--gdg-border)', borderRadius: '6px', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', background: '#F8F9FA' }}>
+                <span style={{ fontSize: '12px', color: 'var(--gdg-text-secondary)', fontWeight: 500 }}>+ Assign Sponsor</span>
+              </div>
+            </div>
+          </DashboardCard>
+        )}
+
+        {/* COMMUNICATIONS TAB */}
+        {tab === 'communications' && (
+          <div className="gdg-grid-2-1">
+            <DashboardCard title="Event Announcement Dispatcher">
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                if (!annSubject) return;
+                setAnnouncements(prev => [...prev, { id: Date.now(), subject: annSubject, date: new Date().toLocaleDateString(), recipients: 'Confirmed Attendees' }]);
+                setAnnSubject('');
+                setAnnBody('');
+                alert('Announcement successfully dispatched!');
+              }} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div className="form-group">
+                  <label>Announcement Subject</label>
+                  <input type="text" value={annSubject} onChange={e => setAnnSubject(e.target.value)} required />
+                </div>
+                <div className="form-group">
+                  <label>Message details</label>
+                  <textarea value={annBody} onChange={e => setAnnBody(e.target.value)} rows={3} required />
+                </div>
+                <button className="btn btn-primary" type="submit" style={{ alignSelf: 'flex-start' }}>
+                  <Send size={12} />
+                  <span>Send Announcement</span>
+                </button>
+              </form>
+            </DashboardCard>
+
+            <DashboardCard title="Dispatched Log history">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {announcements.map(ann => (
+                  <div key={ann.id} style={{ padding: '10px', border: '1px solid var(--gdg-border)', borderRadius: '6px', fontSize: '12px', background: '#F8F9FA' }}>
+                    <strong style={{ display: 'block', fontSize: '13px' }}>{ann.subject}</strong>
+                    <span style={{ display: 'block', color: 'var(--gdg-text-secondary)', marginTop: '4px' }}>Date: {ann.date} | Recipients: {ann.recipients}</span>
+                  </div>
+                ))}
+              </div>
+            </DashboardCard>
+          </div>
+        )}
+
+        {/* ANALYTICS TAB */}
         {tab === 'analytics' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             
-            {/* Top refresh bar */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', alignItems: 'center' }}>
-              <button className="gdg-share-icon-btn" onClick={fetchEventData}><RefreshCw size={14} /></button>
-              <span style={{ fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>just now</span>
-              <button className="gdg-share-icon-btn"><MoreVertical size={16} /></button>
-            </div>
-
-            {/* 4 Stat Cards */}
-            <div className="gdg-stat-grid">
-              <div className="gdg-stat-card">
-                <h4 className="gdg-stat-number">{event.registration_count || 182}</h4>
-                <span className="gdg-stat-label">
-                  Active registrations
-                  <Info size={12} className="text-gray-400" title="Total tickets active" />
-                </span>
-              </div>
-              <div className="gdg-stat-card">
-                <h4 className="gdg-stat-number">13</h4>
-                <span className="gdg-stat-label">
-                  Cancelled registrations
-                  <Info size={12} className="text-gray-400" title="Seats returned to queue" />
-                </span>
-              </div>
-              <div className="gdg-stat-card">
-                <h4 className="gdg-stat-number">{event.registration_count > 0 ? Math.floor(event.registration_count * 0.7) : 127}</h4>
-                <span className="gdg-stat-label">
-                  Check-ins
-                  <Info size={12} className="text-gray-400" title="Scanned at entry" />
-                </span>
-              </div>
-              <div className="gdg-stat-card">
-                <h4 className="gdg-stat-number">{event.registration_count > 0 ? '70.0%' : '69.8%'}</h4>
-                <span className="gdg-stat-label">Check-in rate</span>
-              </div>
-            </div>
-
-            {/* Double Recharts Diagrams */}
             <div className="gdg-grid-2-1">
-              {/* Registrations by Ticket */}
-              <div className="card" style={{ height: '320px' }}>
-                <h4 style={{ margin: '0 0 16px', fontSize: '14px', fontWeight: 500 }}>Registrations by ticket</h4>
-                <ResponsiveContainer width="100%" height="80%">
-                  <BarChart data={ticketData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="name" stroke="#9AA0A6" fontSize={11} />
-                    <YAxis stroke="#9AA0A6" fontSize={11} />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="var(--gdg-purple)" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
+              {/* Registration Trend Chart */}
+              <DashboardCard title="Registration trend over time">
+                <div style={{ height: '240px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={registrationTrends}>
+                      <defs>
+                        <linearGradient id="colorReg" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="var(--gdg-blue)" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="var(--gdg-blue)" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" stroke="#9AA0A6" fontSize={11} />
+                      <YAxis stroke="#9AA0A6" fontSize={11} />
+                      <Tooltip />
+                      <Area type="monotone" dataKey="count" stroke="var(--gdg-blue)" fillOpacity={1} fill="url(#colorReg)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </DashboardCard>
 
-              {/* Check-ins by Date/Hour */}
-              <div className="card" style={{ height: '320px' }}>
-                <h4 style={{ margin: '0 0 16px', fontSize: '14px', fontWeight: 500 }}>Check-in by date and hour</h4>
-                <ResponsiveContainer width="100%" height="80%">
-                  <LineChart data={checkinTimeData}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="time" stroke="#9AA0A6" fontSize={11} />
-                    <YAxis stroke="#9AA0A6" fontSize={11} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="count" stroke="var(--gdg-purple)" strokeWidth={2} dot={{ r: 4 }} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+              {/* Registration Source */}
+              <DashboardCard title="Registration referral source">
+                <div style={{ height: '240px' }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={registrationSourceData}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                      <XAxis dataKey="name" stroke="#9AA0A6" fontSize={10} />
+                      <YAxis stroke="#9AA0A6" fontSize={11} />
+                      <Tooltip />
+                      <Bar dataKey="count" fill="var(--gdg-purple)" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </DashboardCard>
             </div>
-
+            
           </div>
         )}
 
-        {/* OTHER TABS (Fallback cards with custom configuration options) */}
-        {!['overview', 'details', 'registrations', 'analytics'].includes(tab) && (
-          <div className="card" style={{ padding: '32px', textAlign: 'center' }}>
-            <Info size={40} className="text-gray-300" style={{ margin: '0 auto 12px' }} />
-            <h3 style={{ textTransform: 'capitalize' }}>{tab} Configuration Tab</h3>
-            <p style={{ color: 'var(--gdg-text-secondary)', maxWidth: '500px', margin: '0 auto' }}>
-              Configure parameters related to the event's {tab} category. Connect cohosts, partners, startups, upload records, or deploy post-event feedback surveys.
-            </p>
-            <button className="btn btn-secondary" style={{ marginTop: '16px' }}>
-              <Plus size={14} />
-              <span>Configure {tab}</span>
-            </button>
-          </div>
+        {/* WRAP UP TAB */}
+        {tab === 'wrapup' && (
+          <DashboardCard title="Post-Event Wrap Up Resources" className="max-w-xl">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="form-group">
+                <label>Slide Deck Link URL</label>
+                <input type="url" placeholder="https://docs.google.com/presentation/..." style={{ width: '100%' }} />
+              </div>
+              <div className="form-group">
+                <label>Resource Folder Link</label>
+                <input type="url" placeholder="https://github.com/GDG-chapter/..." style={{ width: '100%' }} />
+              </div>
+              <div className="form-group">
+                <label>Wrap Up Summary Editor</label>
+                <textarea rows={4} placeholder="Thank you attendees for joining... The code lab files are uploaded below." style={{ width: '100%' }} />
+              </div>
+              <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }} onClick={() => alert('Resources saved!')}>
+                Save Wrap Up Assets
+              </button>
+            </div>
+          </DashboardCard>
         )}
 
       </div>

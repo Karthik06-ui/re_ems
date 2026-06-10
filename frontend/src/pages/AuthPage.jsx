@@ -1,82 +1,279 @@
 import { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Shield, Mail, Lock, User, Terminal } from 'lucide-react';
 
 export default function AuthPage() {
   const { login, register } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const nextRoute = searchParams.get('next') || '/';
+  
+  // Default redirect is /dashboard
+  const nextRoute = searchParams.get('next') || '/dashboard';
 
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    if (isLogin) {
-      const { success, error: err } = await login(email, password);
-      if (success) {
-        navigate(nextRoute);
+    try {
+      if (isLogin) {
+        const { success, error: err } = await login(email, password);
+        if (success) {
+          navigate(nextRoute, { replace: true });
+        } else {
+          setError(err);
+        }
       } else {
-        setError(err);
+        const { success, error: err } = await register(name, email, password);
+        if (success) {
+          navigate(nextRoute, { replace: true });
+        } else {
+          setError(err);
+        }
       }
-    } else {
-      const { success, error: err } = await register(name, email, password);
+    } catch (err) {
+      setError('An unexpected system error occurred.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDemoMode = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const { success } = await login('lead@kumaraguru.gdg.dev', 'password', true);
       if (success) {
-        navigate(nextRoute);
-      } else {
-        setError(err);
+        navigate(nextRoute, { replace: true });
       }
+    } catch (err) {
+      setError('Demo Mode initialization failed.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '80px auto', padding: '24px' }} className="card">
-      <h2 style={{ textAlign: 'center', marginBottom: '24px' }}>
-        {isLogin ? 'Welcome Back' : 'Join Community'}
-      </h2>
-
-      {error && (
-        <div style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', padding: '10px', borderRadius: '6px', marginBottom: '16px', fontSize: '13px' }}>
-          {error}
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '100vh',
+      width: '100%',
+      fontFamily: 'var(--gdg-font), system-ui, sans-serif',
+      backgroundColor: 'var(--gdg-content-bg)',
+      boxSizing: 'border-box',
+      padding: '20px'
+    }}>
+      <div style={{
+        width: '100%',
+        maxWidth: '440px',
+        backgroundColor: 'var(--card-bg)',
+        border: '1px solid var(--gdg-border)',
+        borderRadius: '12px',
+        boxShadow: 'var(--shadow)',
+        padding: '36px',
+        textAlign: 'left',
+        boxSizing: 'border-box',
+        transition: 'all 0.3s ease'
+      }}>
+        {/* GDG Header Dots branding */}
+        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginBottom: '20px' }}>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#4285F4' }}></span>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#EA4335' }}></span>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#FBBC05' }}></span>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#34A853' }}></span>
         </div>
-      )}
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {!isLogin && (
-          <div className="form-group">
-            <label>Full Name</label>
-            <input type="text" value={name} onChange={e => setName(e.target.value)} required />
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+          <h2 style={{ fontSize: '22px', fontWeight: 500, margin: '0 0 6px 0', color: 'var(--text-h)' }}>
+            Google Developer Groups
+          </h2>
+          <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
+            {isLogin ? 'Event Operations Dashboard SignIn' : 'Create Administrative Account'}
+          </p>
+        </div>
+
+        {error && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            backgroundColor: 'rgba(234, 67, 53, 0.08)',
+            border: '1px solid rgba(234, 67, 53, 0.2)',
+            color: '#EA4335',
+            padding: '12px',
+            borderRadius: '6px',
+            marginBottom: '20px',
+            fontSize: '13px',
+            lineHeight: 1.4
+          }}>
+            <Shield size={16} style={{ flexShrink: 0 }} />
+            <span>{error}</span>
           </div>
         )}
-        <div className="form-group">
-          <label>Email Address</label>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
-        </div>
-        <div className="form-group">
-          <label>Password</label>
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} required minLength={8} />
+
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          {!isLogin && (
+            <div className="form-group">
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                <User size={13} /> Full Name
+              </label>
+              <input 
+                type="text" 
+                value={name} 
+                onChange={e => setName(e.target.value)} 
+                placeholder="Enter your name" 
+                required 
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--input-bg)',
+                  color: 'var(--text-primary)',
+                  fontSize: '14px',
+                  outline: 'none'
+                }}
+              />
+            </div>
+          )}
+
+          <div className="form-group">
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+              <Mail size={13} /> Email Address
+            </label>
+            <input 
+              type="email" 
+              value={email} 
+              onChange={e => setEmail(e.target.value)} 
+              placeholder="name@chapter.gdg.dev"
+              required 
+              style={{
+                padding: '10px 12px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--input-bg)',
+                color: 'var(--text-primary)',
+                fontSize: '14px',
+                outline: 'none'
+              }}
+            />
+          </div>
+
+          <div className="form-group" style={{ marginBottom: '6px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+              <Lock size={13} /> Password
+            </label>
+            <input 
+              type="password" 
+              value={password} 
+              onChange={e => setPassword(e.target.value)} 
+              placeholder="••••••••"
+              required 
+              minLength={8}
+              style={{
+                padding: '10px 12px',
+                borderRadius: '6px',
+                border: '1px solid var(--border-color)',
+                backgroundColor: 'var(--input-bg)',
+                color: 'var(--text-primary)',
+                fontSize: '14px',
+                outline: 'none'
+              }}
+            />
+          </div>
+
+          <button 
+            type="submit" 
+            className="btn btn-primary" 
+            disabled={loading}
+            style={{ 
+              width: '100%', 
+              padding: '11px', 
+              fontSize: '14px', 
+              borderRadius: '6px',
+              backgroundColor: 'var(--gdg-blue)',
+              borderColor: 'var(--gdg-blue)',
+              color: '#FFF',
+              fontWeight: 500,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.7 : 1,
+              marginTop: '6px'
+            }}
+          >
+            {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
+          </button>
+        </form>
+
+        {/* Demo Mode Action Box */}
+        <div style={{
+          marginTop: '24px',
+          padding: '16px',
+          backgroundColor: 'rgba(26, 115, 232, 0.04)',
+          border: '1px dashed rgba(26, 115, 232, 0.25)',
+          borderRadius: '8px',
+          textAlign: 'center'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginBottom: '8px' }}>
+            <Terminal size={14} style={{ color: 'var(--gdg-blue)' }} />
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--gdg-blue)' }}>Review & Dev Quick Access</span>
+          </div>
+          <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '12px', lineHeight: 1.4 }}>
+            Bypass database authentication and instantly load the pre-populated dashboard with a local organizer session.
+          </p>
+          <button 
+            type="button" 
+            onClick={handleDemoMode}
+            disabled={loading}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '4px',
+              border: '1px solid var(--gdg-blue)',
+              backgroundColor: '#FFF',
+              color: 'var(--gdg-blue)',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              width: '100%'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(26, 115, 232, 0.08)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.backgroundColor = '#FFF';
+            }}
+          >
+            {loading ? 'Initializing Demo...' : 'Enter Demo Mode'}
+          </button>
         </div>
 
-        <button className="btn btn-primary" type="submit" style={{ width: '100%', marginTop: '8px' }}>
-          {isLogin ? 'Login' : 'Sign Up'}
-        </button>
-      </form>
-
-      <p style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-        {isLogin ? "Don't have an account?" : 'Already have an account?'}{' '}
-        <button 
-          onClick={() => setIsLogin(!isLogin)} 
-          style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: 'bold', cursor: 'pointer' }}
-        >
-          {isLogin ? 'Sign Up' : 'Login'}
-        </button>
-      </p>
+        <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+          {isLogin ? "Need a workspace account?" : 'Already have a dashboard profile?'}{' '}
+          <button 
+            onClick={() => setIsLogin(!isLogin)} 
+            style={{ 
+              background: 'none', 
+              border: 'none', 
+              color: 'var(--gdg-blue)', 
+              fontWeight: 600, 
+              cursor: 'pointer',
+              padding: 0,
+              fontSize: '12px'
+            }}
+          >
+            {isLogin ? 'Sign Up' : 'Sign In'}
+          </button>
+        </p>
+      </div>
     </div>
   );
 }

@@ -1,19 +1,19 @@
-import React from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useChapter } from '../../contexts/ChapterContext';
 import { 
   Home, 
   BarChart2, 
   Calendar, 
-  Mail, 
+  CheckSquare, 
   Users, 
-  Settings, 
+  Send, 
   Award, 
-  HelpCircle, 
-  Bell, 
-  Eye
+  Settings, 
+  Bell
 } from 'lucide-react';
+import { NotificationDrawer } from '../../components/DashboardComponents';
 
 export default function DashboardShell({ children, sectionTitle }) {
   const { user, logout } = useAuth();
@@ -21,26 +21,51 @@ export default function DashboardShell({ children, sectionTitle }) {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const [notificationOpen, setNotificationOpen] = useState(false);
+  const [notifications, setNotifications] = useState([
+    { id: 1, type: 'Event Published', message: 'Era of Infinite Software event is now live!', time: '10m ago', unread: true },
+    { id: 2, type: 'Registration Milestone', message: 'React Summit reached 80% capacity!', time: '1h ago', unread: true },
+    { id: 3, type: 'Waitlist Promotion', message: 'FIFO Promotion: karthik@gdgdemo.org promoted to confirmed!', time: '2h ago', unread: false },
+    { id: 4, type: 'Sponsor Added', message: 'JetBrains added to Silver Tier placements.', time: '1d ago', unread: false }
+  ]);
+
+  // Menu structure matching the official specification
   const navItems = [
-    { label: 'Home', path: '/dashboard', icon: Home },
+    { label: 'Dashboard', path: '/dashboard', icon: Home },
     { label: 'Analytics', path: '/dashboard/analytics/overview', icon: BarChart2 },
     { label: 'Events', path: '/dashboard/events', icon: Calendar },
-    { label: 'Emails', path: '/dashboard/emails', icon: Mail },
+    { label: 'Registrations', path: '/dashboard/registrations', icon: CheckSquare },
     { label: 'Members', path: '/dashboard/members', icon: Users },
-    { label: 'Settings', path: '/dashboard/settings/overview', icon: Settings },
+    { label: 'Campaigns', path: '/dashboard/campaigns', icon: Send },
     { label: 'Sponsors', path: '/dashboard/sponsors', icon: Award },
-    { label: 'Help', path: '/dashboard/help', icon: HelpCircle },
+    { label: 'Settings', path: '/dashboard/settings/overview', icon: Settings },
   ];
 
   const isActive = (itemPath) => {
     if (itemPath === '/dashboard') {
       return location.pathname === '/dashboard' || location.pathname === '/dashboard/';
     }
+    // Route match check
     return location.pathname.startsWith(itemPath.split('/').slice(0, 3).join('/'));
   };
 
+  const handleMarkAsRead = (id) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
+  };
+
+  const unreadCount = notifications.filter(n => n.unread).length;
+
   // 1. ROLE-BASED ACCESS CONTROL GUARD
-  if (!user || (user.role !== 'platform_admin' && user.role !== 'chapter_lead' && user.role !== 'organizer')) {
+  if (!user) {
+    return <Navigate to="/auth/login" replace />;
+  }
+
+  if (user.role !== 'platform_admin' && user.role !== 'chapter_lead' && user.role !== 'organizer') {
+    const handleUnauthorizedAction = () => {
+      logout();
+      navigate('/auth/login');
+    };
+
     return (
       <div style={{ 
         display: 'flex', 
@@ -63,17 +88,16 @@ export default function DashboardShell({ children, sectionTitle }) {
         }}>
           <h2 style={{ color: '#EA4335', fontSize: '20px', fontWeight: 500, margin: '0 0 12px 0' }}>Unauthorized Access</h2>
           <p style={{ color: '#5F6368', fontSize: '14px', lineHeight: 1.5, margin: '0 0 24px 0' }}>
-            Administrative or Organizer credentials are required to enter this dashboard workspace.
+            Administrative or Chapter Organizer credentials are required to enter this workspace.
           </p>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-            <Link to="/auth/login" className="btn btn-primary" style={{ textDecoration: 'none' }}>Login</Link>
-            <Link to="/" className="btn btn-secondary" style={{ textDecoration: 'none' }}>Back Home</Link>
+            <button onClick={handleUnauthorizedAction} className="btn btn-primary" style={{ cursor: 'pointer' }}>Login</button>
+            <button onClick={handleUnauthorizedAction} className="btn btn-secondary" style={{ cursor: 'pointer' }}>Back Home</button>
           </div>
         </div>
       </div>
     );
   }
-
 
   return (
     <div className="gdg-dashboard-shell">
@@ -83,23 +107,21 @@ export default function DashboardShell({ children, sectionTitle }) {
       </div>
       
       {/* SUB-TEXT BANNER */}
-      <div className="gdg-sub-banner">
+      <div className="gdg-sub-banner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span>Not finding what you need? <a href="#legacy" className="blue-link underline">Switch back to the legacy dashboard</a></span>
+        <span style={{ fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>Role: <strong style={{ textTransform: 'uppercase' }}>{user.role}</strong></span>
       </div>
 
       <div className="gdg-dashboard-body">
-        {/* 2. LEFT SIDEBAR NAVIGATION */}
+        {/* 2. FIXED SIDEBAR */}
         <aside className="gdg-sidebar">
-          {/* Logo Section */}
           <div className="gdg-logo-section">
-            {/* GDG Globe Logo simulation */}
             <div className="gdg-globe-logo">
               <span className="logo-red">●</span>
               <span className="logo-blue">●</span>
               <span className="logo-yellow">●</span>
               <span className="logo-green">●</span>
             </div>
-            {/* Active Chapter Selector */}
             <div className="chapter-avatar-tile">
               <div className="avatar-square">
                 {activeChapter?.name?.substring(0, 2).toUpperCase() || 'GD'}
@@ -128,11 +150,11 @@ export default function DashboardShell({ children, sectionTitle }) {
             })}
           </nav>
 
-          {/* User profile avatar pinned at bottom */}
+          {/* Pinned circular avatar */}
           <div className="gdg-sidebar-bottom">
             <div 
               className="user-circular-avatar" 
-              title={`${user?.name} (${user?.role})`}
+              title={`${user?.name} (Logout)`}
               onClick={() => {
                 if (window.confirm('Do you want to logout?')) {
                   logout();
@@ -158,13 +180,7 @@ export default function DashboardShell({ children, sectionTitle }) {
             </div>
             
             <div className="gdg-header-actions">
-              {/* Eye link to event page/landing */}
-              <Link to="/" className="view-page-link">
-                <Eye size={16} />
-                <span>View page</span>
-              </Link>
-
-              {/* Chapter context switcher drop-down in top bar */}
+              {/* Context Selector */}
               <select
                 value={activeChapter ? activeChapter.slug : ''}
                 onChange={(e) => {
@@ -179,10 +195,14 @@ export default function DashboardShell({ children, sectionTitle }) {
                 ))}
               </select>
 
-              {/* Notification bell icon */}
-              <div className="bell-container cursor-pointer" title="Notifications">
+              {/* Notification Bell */}
+              <div 
+                className="bell-container cursor-pointer" 
+                title="Chapter Alerts"
+                onClick={() => setNotificationOpen(true)}
+              >
                 <Bell size={20} className="text-gray-600 hover:text-blue-600" />
-                <span className="bell-badge"></span>
+                {unreadCount > 0 && <span className="bell-badge"></span>}
               </div>
             </div>
           </header>
@@ -192,6 +212,15 @@ export default function DashboardShell({ children, sectionTitle }) {
           </div>
         </main>
       </div>
+
+      {/* GLOBAL NOTIFICATION CENTER DRAWER */}
+      <NotificationDrawer 
+        isOpen={notificationOpen}
+        onClose={() => setNotificationOpen(false)}
+        notifications={notifications}
+        onMarkAsRead={handleMarkAsRead}
+      />
+
     </div>
   );
 }
