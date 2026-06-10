@@ -11,7 +11,10 @@ class Event(models.Model):
     class EventStatus(models.TextChoices):
         DRAFT = 'draft', 'Draft'
         PUBLISHED = 'published', 'Published'
+        REGISTRATION_OPEN = 'registration open', 'Registration Open'
+        REGISTRATION_CLOSED = 'registration closed', 'Registration Closed'
         COMPLETED = 'completed', 'Completed'
+        ARCHIVED = 'archived', 'Archived'
         CANCELLED = 'cancelled', 'Cancelled'
         HIDDEN = 'hidden', 'Hidden'
 
