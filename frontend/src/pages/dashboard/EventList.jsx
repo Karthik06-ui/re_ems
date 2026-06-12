@@ -115,10 +115,12 @@ export default function EventList() {
     }
   };
 
-  const handleDuplicateEvent = async (eventToDuplicate) => {
+  const handleDuplicateEvent = async (eventId) => {
     if (!activeChapter) return;
+    const eventToDuplicate = events.find(e => e.id === eventId);
+    if (!eventToDuplicate) return;
     const copyTitle = `${eventToDuplicate.title} (Copy)`;
-    const { status } = await apiRequest('/api/v1/events/', 'POST', {
+    const { status, data } = await apiRequest('/api/v1/events/', 'POST', {
       chapter: activeChapter.id,
       title: copyTitle,
       description: eventToDuplicate.description || 'Hands-on DevOps pipeline integrations, CI/CD models review, and containerized deployment scheduling.',
@@ -133,8 +135,9 @@ export default function EventList() {
 
     if (status === 201) {
       fetchEventsData();
+      alert("Event duplicated successfully!");
     } else {
-      alert("Failed to duplicate event.");
+      alert("Failed to duplicate event: " + (data?.detail || JSON.stringify(data)));
     }
   };
 

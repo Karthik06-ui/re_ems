@@ -6,7 +6,8 @@ import {
 } from 'recharts';
 import { 
   ChevronLeft, RefreshCw, MoreVertical, Edit, UserCheck, Plus, Trash2, 
-  ArrowUp, ArrowDown, Download, CheckSquare, MessageSquare, Send, Award, BookOpen
+  ArrowUp, ArrowDown, Download, CheckSquare, MessageSquare, Send, Award, BookOpen,
+  ExternalLink, Copy
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { 
@@ -154,6 +155,35 @@ export default function EventDetailWorkspace() {
       alert('Failed to update event settings.');
     }
     setSaving(false);
+  };
+
+  // Duplicate Event
+  const handleDuplicateEvent = async (eventToDuplicate) => {
+    if (!eventToDuplicate) return;
+    const copyTitle = `${eventToDuplicate.title} (Copy)`;
+    const { status, data } = await apiRequest('/api/v1/events/', 'POST', {
+      chapter: eventToDuplicate.chapter,
+      title: copyTitle,
+      description: eventToDuplicate.description || 'Hands-on DevOps pipeline integrations, CI/CD models review, and containerized deployment scheduling.',
+      type: eventToDuplicate.type || 'physical',
+      capacity: eventToDuplicate.capacity,
+      venue: eventToDuplicate.venue,
+      start_time: eventToDuplicate.start_time,
+      end_time: eventToDuplicate.end_time,
+      timezone: eventToDuplicate.timezone || 'GMT+5:30',
+      status: 'draft'
+    }, true);
+
+    if (status === 201) {
+      alert("Event duplicated successfully as draft!");
+      if (data && data.id) {
+        navigate(`/dashboard/events/${data.id}/overview`);
+      } else {
+        navigate('/dashboard/events');
+      }
+    } else {
+      alert("Failed to duplicate event: " + (data?.detail || JSON.stringify(data)));
+    }
   };
 
   // Checkin Attendee
@@ -312,8 +342,51 @@ export default function EventDetailWorkspace() {
             <p style={{ color: 'var(--gdg-text-secondary)', fontSize: '14px', margin: 0 }}>📍 {event.venue} | ⏰ {new Date(event.start_time).toLocaleString()}</p>
           </div>
           
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
             <EventStatusBadge status={event.status} />
+            
+            <div style={{ display: 'flex', gap: '16px', alignItems: 'center', borderLeft: '1px solid var(--gdg-border)', paddingLeft: '16px' }}>
+              <button 
+                onClick={() => navigate(`/dashboard/events/${id}/overview`)} 
+                className="blue-link" 
+                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', padding: 0 }}
+              >
+                <Edit size={14} />
+                <span>Workspace</span>
+              </button>
+
+              <a 
+                href={`/events/${id}`}
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="blue-link" 
+                style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px' }}
+              >
+                <ExternalLink size={14} />
+                <span>Event Page</span>
+              </a>
+
+              <button 
+                onClick={() => handleDuplicateEvent(event)} 
+                className="blue-link" 
+                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', padding: 0 }}
+              >
+                <Copy size={14} />
+                <span>Duplicate</span>
+              </button>
+
+              <button 
+                className="blue-link" 
+                onClick={() => {
+                  navigator.clipboard.writeText(`${window.location.origin}/events/${event.id}`);
+                  alert('URL copied!');
+                }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '13px', padding: 0 }}
+              >
+                <Copy size={14} />
+                <span>Copy URL</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
