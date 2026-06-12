@@ -24,7 +24,7 @@ class DiscussionThreadSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = DiscussionThread
-        fields = ('id', 'chapter', 'author', 'title', 'content', 'created_at', 'comment_count')
+        fields = ('id', 'author', 'title', 'content', 'created_at', 'comment_count')
         read_only_fields = ('id', 'author', 'created_at')
 
     def get_comment_count(self, obj):

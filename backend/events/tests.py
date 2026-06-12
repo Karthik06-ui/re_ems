@@ -6,7 +6,6 @@ from rest_framework.test import APITestCase
 from datetime import timedelta
 
 from .models import Event, Registration, Waitlist
-from chapters.models import Chapter
 
 User = get_user_model()
 
@@ -16,11 +15,8 @@ class EventRegistrationTests(APITestCase):
         self.user_b = User.objects.create_user(email='user_b@test.com', name='User B', password='password123')
         self.user_c = User.objects.create_user(email='user_c@test.com', name='User C', password='password123')
         
-        self.chapter = Chapter.objects.create(name='GDG New York', slug='gdg-ny')
-        
         # Create an event with capacity = 2
         self.event = Event.objects.create(
-            chapter=self.chapter,
             title='NY Dev Summit',
             description='Summit description',
             type=Event.EventType.PHYSICAL,

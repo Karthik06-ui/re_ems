@@ -3,11 +3,11 @@ import DashboardShell from './DashboardShell';
 import { DashboardCard, StatusBadge, FilterPill } from '../../components/DashboardComponents';
 import { Search, ShieldAlert, RefreshCw, BookOpen, Clock, Trash2, Plus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useChapter } from '../../contexts/ChapterContext';
+
 
 export default function MembersDashboard() {
   const { apiRequest } = useAuth();
-  const { activeChapter } = useChapter();
+
 
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -22,9 +22,8 @@ export default function MembersDashboard() {
   const [newRole, setNewRole] = useState('member');
 
   const fetchMembers = async () => {
-    if (!activeChapter) return;
     setLoading(true);
-    const { status, data } = await apiRequest(`/api/v1/chapters/${activeChapter.slug}/roles/`, 'GET', null, true);
+    const { status, data } = await apiRequest('/api/v1/auth/users/', 'GET', null, true);
     if (status === 200) {
       const formatted = data.map(item => ({
         id: item.id,
@@ -46,13 +45,12 @@ export default function MembersDashboard() {
 
   useEffect(() => {
     fetchMembers();
-  }, [activeChapter]);
+  }, []);
 
   const handleRoleChange = async (memberEmail, newRoleDisplay) => {
-    if (!activeChapter) return;
     const backendRole = newRoleDisplay === 'Chapter Lead' ? 'chapter_lead' : newRoleDisplay === 'Organizer' ? 'organizer' : 'member';
     
-    const { status, data } = await apiRequest(`/api/v1/chapters/${activeChapter.slug}/roles/`, 'POST', {
+    const { status, data } = await apiRequest('/api/v1/auth/users/', 'POST', {
       user_email: memberEmail,
       role: backendRole
     }, true);
@@ -68,7 +66,7 @@ export default function MembersDashboard() {
     e.preventDefault();
     if (!newEmail) return;
 
-    const { status, data } = await apiRequest(`/api/v1/chapters/${activeChapter.slug}/roles/`, 'POST', {
+    const { status, data } = await apiRequest('/api/v1/auth/users/', 'POST', {
       user_email: newEmail,
       role: newRole
     }, true);
@@ -83,7 +81,7 @@ export default function MembersDashboard() {
 
   const handleDeleteMemberRole = async (roleId) => {
     if (!window.confirm("Remove this member role assignment?")) return;
-    const { status, data } = await apiRequest(`/api/v1/chapters/${activeChapter.slug}/roles/`, 'DELETE', {
+    const { status, data } = await apiRequest('/api/v1/auth/users/', 'DELETE', {
       role_id: roleId
     }, true);
 

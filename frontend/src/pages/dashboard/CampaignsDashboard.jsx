@@ -3,11 +3,11 @@ import DashboardShell from './DashboardShell';
 import { DashboardCard, StatusBadge } from '../../components/DashboardComponents';
 import { Mail, Send, Calendar, Clock, Plus, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useChapter } from '../../contexts/ChapterContext';
+
 
 export default function CampaignsDashboard() {
   const { apiRequest } = useAuth();
-  const { activeChapter } = useChapter();
+
 
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,18 +23,17 @@ export default function CampaignsDashboard() {
   const [err, setErr] = useState('');
 
   const fetchCampaigns = async () => {
-    if (!activeChapter) return;
     setLoading(true);
     const { status, data } = await apiRequest('/api/v1/campaigns/', 'GET', null, true);
     if (status === 200) {
-      setCampaigns(data.filter(c => c.chapter === activeChapter.id));
+      setCampaigns(data);
     }
     setLoading(false);
   };
 
   useEffect(() => {
     fetchCampaigns();
-  }, [activeChapter]);
+  }, []);
 
   const handleCreateCampaign = async (e) => {
     e.preventDefault();
@@ -42,7 +41,6 @@ export default function CampaignsDashboard() {
     setErr('');
 
     const { status } = await apiRequest('/api/v1/campaigns/', 'POST', {
-      chapter: activeChapter.id,
       subject,
       body,
       audience

@@ -7,11 +7,11 @@ import {
 } from '../../components/DashboardComponents';
 import { Search, Filter, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useChapter } from '../../contexts/ChapterContext';
+
 
 export default function RegistrationsDashboard() {
   const { apiRequest } = useAuth();
-  const { activeChapter } = useChapter();
+
 
   const [registrations, setRegistrations] = useState([
     { email: 'karthik@gdgdemo.org', eventTitle: 'Era of Infinite Software', ticket_type: 'General Admission', date: '2026-Jun-09', status: 'confirmed' },
@@ -32,7 +32,7 @@ export default function RegistrationsDashboard() {
 
   useEffect(() => {
     fetchRegistrations();
-  }, [activeChapter]);
+  }, []);
 
   const handleCheckin = (email) => {
     setRegistrations(prev => prev.map(r => r.email === email ? { ...r, status: 'checked_in' } : r));

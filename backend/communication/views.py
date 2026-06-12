@@ -5,8 +5,10 @@ from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from .models import EmailCampaign
 from .serializers import EmailCampaignSerializer
-from chapters.models import UserChapterRole
+from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
+
+User = get_user_model()
 
 class EmailCampaignViewSet(viewsets.ModelViewSet):
     queryset = EmailCampaign.objects.all()
@@ -28,9 +30,8 @@ class EmailCampaignViewSet(viewsets.ModelViewSet):
         # Resolve audience list
         recipients = []
         if campaign.audience == 'all':
-            # Get all members of the chapter
-            roles = UserChapterRole.objects.filter(chapter=campaign.chapter)
-            recipients = [role.user.email for role in roles]
+            # Get all users (since chapters are removed)
+            recipients = list(User.objects.filter(is_active=True).values_list('email', flat=True))
 
         # Simulate batch email transmission (in a real app, this would be a Celery task)
         # We also trigger standard django send_mail to facilitate local testing

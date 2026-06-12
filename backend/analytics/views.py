@@ -7,7 +7,6 @@ from django.contrib.auth import get_user_model
 
 from .models import AnalyticsEvent
 from .serializers import AnalyticsEventSerializer
-from chapters.models import Chapter
 from events.models import Event, Registration
 from discussions.models import DiscussionThread
 
@@ -18,30 +17,10 @@ class AnalyticsViewSet(viewsets.ViewSet):
 
     @action(detail=False, methods=['get'])
     def overview(self, request):
-        chapter_slug = request.query_params.get('chapter')
-        
-        # Base queries
-        users_query = User.objects.all()
-        events_query = Event.objects.filter(deleted_at__isnull=True)
-        registrations_query = Registration.objects.all()
-        threads_query = DiscussionThread.objects.filter(deleted_at__isnull=True)
-
-        if chapter_slug:
-            chapter = Chapter.objects.filter(slug=chapter_slug).first()
-            if not chapter:
-                return Response({"detail": "Chapter not found."}, status=status.HTTP_404_NOT_FOUND)
-            
-            # Scoped counts
-            users_count = User.objects.filter(chapter_roles__chapter=chapter).count()
-            events_count = events_query.filter(chapter=chapter).count()
-            registrations_count = registrations_query.filter(event__chapter=chapter).count()
-            threads_count = threads_query.filter(chapter=chapter).count()
-        else:
-            # Global counts for platform admins
-            users_count = users_query.count()
-            events_count = events_query.count()
-            registrations_count = registrations_query.count()
-            threads_count = threads_query.count()
+        users_count = User.objects.count()
+        events_count = Event.objects.filter(deleted_at__isnull=True).count()
+        registrations_count = Registration.objects.count()
+        threads_count = DiscussionThread.objects.filter(deleted_at__isnull=True).count()
 
         return Response({
             "total_members": users_count,

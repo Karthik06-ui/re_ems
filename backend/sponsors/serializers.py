@@ -4,7 +4,7 @@ from .models import Sponsor, EventSponsor
 class SponsorSerializer(serializers.ModelSerializer):
     class Meta:
         model = Sponsor
-        fields = ('id', 'chapter', 'name', 'logo', 'website', 'tier', 'created_at')
+        fields = ('id', 'name', 'logo', 'website', 'tier', 'created_at')
         read_only_fields = ('id', 'created_at')
 
 class EventSponsorSerializer(serializers.ModelSerializer):

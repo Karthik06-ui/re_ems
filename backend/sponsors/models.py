@@ -1,5 +1,4 @@
 from django.db import models
-from chapters.models import Chapter
 from events.models import Event
 
 class Sponsor(models.Model):
@@ -8,7 +7,6 @@ class Sponsor(models.Model):
         SILVER = 'silver', 'Silver'
         BRONZE = 'bronze', 'Bronze'
 
-    chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='sponsors')
     name = models.CharField(max_length=255)
     logo = models.URLField(max_length=500, blank=True, null=True)
     website = models.URLField(max_length=500, blank=True)

@@ -7,8 +7,6 @@ from django.utils import timezone
 
 from .models import DiscussionThread, Comment
 from .serializers import DiscussionThreadSerializer, CommentSerializer
-from chapters.models import Chapter
-
 class DiscussionThreadViewSet(viewsets.ModelViewSet):
     queryset = DiscussionThread.objects.filter(deleted_at__isnull=True)
     serializer_class = DiscussionThreadSerializer
@@ -19,11 +17,7 @@ class DiscussionThreadViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     def get_queryset(self):
-        queryset = super().get_queryset()
-        chapter_slug = self.request.query_params.get('chapter')
-        if chapter_slug:
-            queryset = queryset.filter(chapter__slug=chapter_slug)
-        return queryset
+        return super().get_queryset()
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)

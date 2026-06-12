@@ -7,14 +7,14 @@ import {
   AlignLeft, AlignCenter, AlignRight, Heading, Undo, Redo, ShieldAlert, Users, Settings
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useChapter } from '../../contexts/ChapterContext';
+
 import { DashboardCard } from '../../components/DashboardComponents';
 
 export default function SettingsWorkspace() {
   const { tab = 'overview' } = useParams();
   const navigate = useNavigate();
   const { apiRequest } = useAuth();
-  const { activeChapter, refreshChapters } = useChapter();
+
 
   // Overview Tab Form States
   const [title, setTitle] = useState('');
@@ -37,8 +37,7 @@ export default function SettingsWorkspace() {
   const [saving, setSaving] = useState(false);
 
   const fetchTeamMembers = async () => {
-    if (!activeChapter) return;
-    const { status, data } = await apiRequest(`/api/v1/chapters/${activeChapter.slug}/roles/`, 'GET', null, true);
+    const { status, data } = await apiRequest('/api/v1/auth/users/', 'GET', null, true);
     if (status === 200) {
       setTeamMembers(data.map(item => ({
         id: item.id,
@@ -62,10 +61,10 @@ export default function SettingsWorkspace() {
   }, [activeChapter]);
 
   useEffect(() => {
-    if (activeChapter && tab === 'team') {
+    if (tab === 'team') {
       fetchTeamMembers();
     }
-  }, [activeChapter, tab]);
+  }, [tab]);
 
   const handleSaveSettings = async () => {
     if (!activeChapter) return;
@@ -93,7 +92,7 @@ export default function SettingsWorkspace() {
     if (!newTeamEmail) return;
     const backendRole = newTeamRole === 'Chapter Lead' ? 'chapter_lead' : 'organizer';
 
-    const { status, data } = await apiRequest(`/api/v1/chapters/${activeChapter.slug}/roles/`, 'POST', {
+    const { status, data } = await apiRequest('/api/v1/auth/users/', 'POST', {
       user_email: newTeamEmail,
       role: backendRole
     }, true);
@@ -108,7 +107,7 @@ export default function SettingsWorkspace() {
 
   const handleRemoveTeamMember = async (roleId) => {
     if (!window.confirm("Remove this team member role?")) return;
-    const { status, data } = await apiRequest(`/api/v1/chapters/${activeChapter.slug}/roles/`, 'DELETE', {
+    const { status, data } = await apiRequest('/api/v1/auth/users/', 'DELETE', {
       role_id: roleId
     }, true);
 
@@ -119,7 +118,7 @@ export default function SettingsWorkspace() {
     }
   };
 
-  const settingsTabs = ['overview', 'branding', 'team', 'tracking'];
+  const settingsTabs = ['team'];
 
   return (
     <DashboardShell sectionTitle="Settings">

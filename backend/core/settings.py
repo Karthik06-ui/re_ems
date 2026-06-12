@@ -41,7 +41,6 @@ INSTALLED_APPS = [
     
     # Local apps
     'authentication',
-    'chapters',
     'events',
     'discussions',
     'sponsors',

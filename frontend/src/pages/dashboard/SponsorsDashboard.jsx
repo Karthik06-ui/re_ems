@@ -3,11 +3,11 @@ import DashboardShell from './DashboardShell';
 import { DashboardCard, StatusBadge } from '../../components/DashboardComponents';
 import { Award, Plus, Globe, RefreshCw, BarChart, Trash2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useChapter } from '../../contexts/ChapterContext';
+
 
 export default function SponsorsDashboard() {
   const { apiRequest } = useAuth();
-  const { activeChapter } = useChapter();
+
 
   const [sponsors, setSponsors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,18 +21,17 @@ export default function SponsorsDashboard() {
   const [err, setErr] = useState('');
 
   const fetchSponsorsData = async () => {
-    if (!activeChapter) return;
     setLoading(true);
     const { status, data } = await apiRequest('/api/v1/sponsors/', 'GET', null, true);
     if (status === 200) {
-      setSponsors(data.filter(s => s.chapter === activeChapter.id));
+      setSponsors(data);
     }
     setLoading(false);
   };
 
   useEffect(() => {
     fetchSponsorsData();
-  }, [activeChapter]);
+  }, []);
 
   const handleCreateSponsor = async (e) => {
     e.preventDefault();
@@ -40,7 +39,6 @@ export default function SponsorsDashboard() {
     setErr('');
 
     const { status } = await apiRequest('/api/v1/sponsors/', 'POST', {
-      chapter: activeChapter.id,
       name,
       website,
       tier

@@ -36,3 +36,10 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         # Append serialized user profile directly to response body
         data['user'] = UserSerializer(self.user).data
         return data
+
+class UserRoleSerializer(serializers.ModelSerializer):
+    user = UserSerializer(source='*')
+
+    class Meta:
+        model = User
+        fields = ('id', 'user', 'role')

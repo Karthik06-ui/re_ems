@@ -1,7 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { ChapterProvider } from './contexts/ChapterContext';
 import AuthPage from './pages/AuthPage';
 import DashboardOverview from './pages/dashboard/DashboardOverview';
 import AnalyticsDashboard from './pages/dashboard/AnalyticsDashboard';
@@ -34,7 +33,7 @@ function MainLayout() {
       <Route path="/dashboard/members" element={<MembersDashboard />} />
       <Route path="/dashboard/campaigns" element={<CampaignsDashboard />} />
       <Route path="/dashboard/sponsors" element={<SponsorsDashboard />} />
-      <Route path="/dashboard/settings" element={<Navigate to="/dashboard/settings/overview" replace />} />
+      <Route path="/dashboard/settings" element={<Navigate to="/dashboard/settings/team" replace />} />
       <Route path="/dashboard/settings/:tab" element={<SettingsWorkspace />} />
       
       {/* Legacy/Fallback redirects */}
@@ -47,11 +46,9 @@ function MainLayout() {
 function App() {
   return (
     <AuthProvider>
-      <ChapterProvider>
-        <BrowserRouter>
-          <MainLayout />
-        </BrowserRouter>
-      </ChapterProvider>
+      <BrowserRouter>
+        <MainLayout />
+      </BrowserRouter>
     </AuthProvider>
   );
 }

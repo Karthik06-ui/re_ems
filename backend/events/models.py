@@ -1,6 +1,5 @@
 from django.db import models
 from django.conf import settings
-from chapters.models import Chapter
 
 class Event(models.Model):
     class EventType(models.TextChoices):
@@ -18,7 +17,6 @@ class Event(models.Model):
         CANCELLED = 'cancelled', 'Cancelled'
         HIDDEN = 'hidden', 'Hidden'
 
-    chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='events')
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     type = models.CharField(max_length=50, choices=EventType.choices, default=EventType.PHYSICAL)
@@ -75,13 +73,3 @@ class Speaker(models.Model):
 
     def __str__(self):
         return self.name
-
-class EventCohost(models.Model):
-    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='cohosts')
-    cohost_chapter = models.ForeignKey(Chapter, on_delete=models.CASCADE, related_name='cohosted_events')
-
-    class Meta:
-        unique_together = ('event', 'cohost_chapter')
-
-    def __str__(self):
-        return f"{self.event.title} cohosted by {self.cohost_chapter.name}"

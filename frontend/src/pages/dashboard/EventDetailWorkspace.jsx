@@ -122,9 +122,9 @@ export default function EventDetailWorkspace() {
     if (placementRes.status === 200) {
       setEventSponsors(placementRes.data);
     }
-    const allSponsorsRes = await apiRequest(`/api/v1/sponsors/`, 'GET', null, true);
+    const allSponsorsRes = await apiRequest('/api/v1/sponsors/', 'GET', null, true);
     if (allSponsorsRes.status === 200 && event) {
-      setAllSponsors(allSponsorsRes.data.filter(s => s.chapter === event.chapter));
+      setAllSponsors(allSponsorsRes.data);
     }
   };
 
@@ -162,7 +162,6 @@ export default function EventDetailWorkspace() {
     if (!eventToDuplicate) return;
     const copyTitle = `${eventToDuplicate.title} (Copy)`;
     const { status, data } = await apiRequest('/api/v1/events/', 'POST', {
-      chapter: eventToDuplicate.chapter,
       title: copyTitle,
       description: eventToDuplicate.description || 'Hands-on DevOps pipeline integrations, CI/CD models review, and containerized deployment scheduling.',
       type: eventToDuplicate.type || 'physical',

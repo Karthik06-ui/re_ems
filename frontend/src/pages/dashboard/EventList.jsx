@@ -8,11 +8,11 @@ import {
 } from '../../components/DashboardComponents';
 import { Plus, Search, Calendar } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useChapter } from '../../contexts/ChapterContext';
+
 
 export default function EventList() {
   const { apiRequest } = useAuth();
-  const { activeChapter } = useChapter();
+
   const navigate = useNavigate();
 
   const [events, setEvents] = useState([]);
@@ -31,9 +31,8 @@ export default function EventList() {
   const [newCapacity, setNewCapacity] = useState('150');
 
   const fetchEventsData = async () => {
-    if (!activeChapter) return;
     setLoading(true);
-    const { status, data } = await apiRequest(`/api/v1/events/?chapter=${activeChapter.slug}`, 'GET', null, true);
+    const { status, data } = await apiRequest('/api/v1/events/', 'GET', null, true);
     if (status === 200) {
       setEvents(data);
     }
@@ -42,21 +41,15 @@ export default function EventList() {
 
   useEffect(() => {
     fetchEventsData();
-  }, [activeChapter]);
+  }, []);
 
   const handleCreateDraft = async (e) => {
     e.preventDefault();
-    if (!activeChapter) {
-      alert("No active chapter selected. Please register a chapter first.");
-      return;
-    }
-
     const start_time = new Date();
     start_time.setDate(start_time.getDate() + 7);
     const end_time = new Date(start_time.getTime() + 3 * 60 * 60 * 1000);
 
     const { status, data } = await apiRequest('/api/v1/events/', 'POST', {
-      chapter: activeChapter.id,
       title: newTitle,
       description: 'Hands-on DevOps pipeline integrations, CI/CD models review, and containerized deployment scheduling.',
       type: 'physical',
@@ -116,12 +109,10 @@ export default function EventList() {
   };
 
   const handleDuplicateEvent = async (eventId) => {
-    if (!activeChapter) return;
     const eventToDuplicate = events.find(e => e.id === eventId);
     if (!eventToDuplicate) return;
     const copyTitle = `${eventToDuplicate.title} (Copy)`;
     const { status, data } = await apiRequest('/api/v1/events/', 'POST', {
-      chapter: activeChapter.id,
       title: copyTitle,
       description: eventToDuplicate.description || 'Hands-on DevOps pipeline integrations, CI/CD models review, and containerized deployment scheduling.',
       type: eventToDuplicate.type || 'physical',

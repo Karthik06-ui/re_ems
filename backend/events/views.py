@@ -6,9 +6,8 @@ from django.db import transaction
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 
-from .models import Event, Registration, Waitlist, Speaker, EventCohost
+from .models import Event, Registration, Waitlist, Speaker
 from .serializers import EventSerializer, RegistrationSerializer, WaitlistSerializer, SpeakerSerializer
-from chapters.models import Chapter, UserChapterRole
 from authentication.models import User
 
 class EventViewSet(viewsets.ModelViewSet):
@@ -22,10 +21,6 @@ class EventViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        chapter_slug = self.request.query_params.get('chapter')
-        if chapter_slug:
-            queryset = queryset.filter(chapter__slug=chapter_slug)
-        
         # Public users can only see published events
         user = self.request.user
         if not user or not user.is_authenticated or user.role == User.Role.MEMBER:
@@ -151,11 +146,7 @@ class EventViewSet(viewsets.ModelViewSet):
     def checkin(self, request, pk=None):
         event = self.get_object()
         # Verify checking user is chapter organizer or admin
-        is_organizer = UserChapterRole.objects.filter(
-            user=request.user,
-            chapter=event.chapter,
-            role__in=[UserChapterRole.Role.LEAD, UserChapterRole.Role.ORGANIZER]
-        ).exists() or request.user.role == User.Role.PLATFORM_ADMIN
+        is_organizer = request.user.role in [User.Role.PLATFORM_ADMIN, User.Role.CHAPTER_LEAD, User.Role.ORGANIZER]
 
         if not is_organizer:
             return Response(

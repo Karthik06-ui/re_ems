@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { useChapter } from '../../contexts/ChapterContext';
+
 import { 
   Home, 
   BarChart2, 
@@ -17,7 +17,7 @@ import { NotificationDrawer } from '../../components/DashboardComponents';
 
 export default function DashboardShell({ children, sectionTitle }) {
   const { user, logout } = useAuth();
-  const { chapters, activeChapter, selectChapter } = useChapter();
+
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -124,10 +124,10 @@ export default function DashboardShell({ children, sectionTitle }) {
             </div>
             <div className="chapter-avatar-tile">
               <div className="avatar-square">
-                {activeChapter?.name?.substring(0, 2).toUpperCase() || 'GD'}
+                GD
               </div>
-              <span className="avatar-label" title={activeChapter?.name || 'GDG Chapter'}>
-                {activeChapter?.name ? `${activeChapter.name.substring(0, 7)}...` : 'GDG on Ca...'}
+              <span className="avatar-label" title="GDG Workspace">
+                GDG Workspace
               </span>
             </div>
           </div>
@@ -173,27 +173,14 @@ export default function DashboardShell({ children, sectionTitle }) {
             <div className="gdg-title-section">
               <h2 className="gdg-page-title">
                 {sectionTitle ? `${sectionTitle}: ` : ''}
-                <span className="font-normal text-gray-800">
-                  {activeChapter?.name || 'GDG on Campus Kumaraguru College of Technology - Coimbatore, Tamil Nadu, India'}
-                </span>
+                  <span className="font-normal text-gray-800">
+                    GDG Workspace
+                  </span>
               </h2>
             </div>
             
             <div className="gdg-header-actions">
-              {/* Context Selector */}
-              <select
-                value={activeChapter ? activeChapter.slug : ''}
-                onChange={(e) => {
-                  const matched = chapters.find(c => c.slug === e.target.value);
-                  if (matched) selectChapter(matched);
-                }}
-                className="gdg-header-dropdown"
-              >
-                <option value="" disabled>Select Chapter</option>
-                {chapters.map(c => (
-                  <option key={c.id} value={c.slug}>{c.name}</option>
-                ))}
-              </select>
+
 
               {/* Notification Bell */}
               <div 

@@ -3,16 +3,13 @@ from django.contrib.auth import get_user_model
 from rest_framework import status
 from rest_framework.test import APITestCase
 from .models import DiscussionThread, Comment
-from chapters.models import Chapter
 
 User = get_user_model()
 
 class DiscussionTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(email='author@test.com', name='Author User', password='password123')
-        self.chapter = Chapter.objects.create(name='GDG Denver', slug='gdg-denver')
         self.thread = DiscussionThread.objects.create(
-            chapter=self.chapter,
             author=self.user,
             title='Welcome Thread',
             content='Welcome to the GDG Denver chapter!'
@@ -24,7 +21,6 @@ class DiscussionTests(APITestCase):
         """Ensure authenticated member can post a discussion thread."""
         self.client.force_authenticate(user=self.user)
         data = {
-            'chapter': self.chapter.id,
             'title': 'New Topic',
             'content': 'Some content here'
         }

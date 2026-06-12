@@ -7,7 +7,7 @@ import {
 } from 'recharts';
 import { Info, RefreshCw } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useChapter } from '../../contexts/ChapterContext';
+
 import { StatCard, DashboardCard } from '../../components/DashboardComponents';
 
 // Mock charts data
@@ -44,7 +44,7 @@ export default function AnalyticsDashboard() {
   const { tab = 'overview' } = useParams();
   const navigate = useNavigate();
   const { apiRequest } = useAuth();
-  const { activeChapter } = useChapter();
+
   
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({
@@ -59,22 +59,20 @@ export default function AnalyticsDashboard() {
     const timer = setTimeout(() => setLoading(false), 300);
 
     const fetchOverviewData = async () => {
-      if (activeChapter) {
-        const { status, data } = await apiRequest(`/api/v1/analytics/overview/?chapter=${activeChapter.slug}`, 'GET', null, true);
-        if (status === 200) {
-          setStats({
-            events: data.total_events || 3,
-            registrations: data.total_registrations || 309,
-            members: data.total_members || 393,
-            rate: data.engagement_metrics?.attendance_rate || 85.5
-          });
-        }
+      const { status, data } = await apiRequest('/api/v1/analytics/overview/', 'GET', null, true);
+      if (status === 200) {
+        setStats({
+          events: data.total_events || 3,
+          registrations: data.total_registrations || 309,
+          members: data.total_members || 393,
+          rate: data.engagement_metrics?.attendance_rate || 85.5
+        });
       }
     };
     fetchOverviewData();
 
     return () => clearTimeout(timer);
-  }, [tab, activeChapter]);
+  }, [tab]);
 
   // Operational tab selections only
   const tabs = [

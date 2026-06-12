@@ -1,8 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Event, Registration, Waitlist, Speaker, EventCohost
+from .models import Event, Registration, Waitlist, Speaker
 from authentication.serializers import UserSerializer
-from chapters.serializers import ChapterSerializer
 
 User = get_user_model()
 
@@ -11,23 +10,17 @@ class SpeakerSerializer(serializers.ModelSerializer):
         model = Speaker
         fields = ('id', 'name', 'bio', 'avatar')
 
-class EventCohostSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = EventCohost
-        fields = ('id', 'cohost_chapter')
-
 class EventSerializer(serializers.ModelSerializer):
     speakers = SpeakerSerializer(many=True, read_only=True)
-    cohosts = EventCohostSerializer(many=True, read_only=True)
     registration_count = serializers.SerializerMethodField()
     waitlist_count = serializers.SerializerMethodField()
 
     class Meta:
         model = Event
         fields = (
-            'id', 'chapter', 'title', 'description', 'type', 'status',
+            'id', 'title', 'description', 'type', 'status',
             'start_time', 'end_time', 'timezone', 'venue', 'capacity',
-            'cover_image', 'created_at', 'speakers', 'cohosts',
+            'cover_image', 'created_at', 'speakers',
             'registration_count', 'waitlist_count'
         )
         read_only_fields = ('id', 'created_at')

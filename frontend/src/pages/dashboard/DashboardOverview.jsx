@@ -12,12 +12,12 @@ import {
   Plus, Send, Award, Users, Calendar, AlertCircle, RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useChapter } from '../../contexts/ChapterContext';
+
 
 export default function DashboardOverview() {
   const navigate = useNavigate();
   const { apiRequest } = useAuth();
-  const { activeChapter } = useChapter();
+
 
   const [loading, setLoading] = useState(true);
   const [counts, setCounts] = useState({
@@ -37,11 +37,10 @@ export default function DashboardOverview() {
   ]);
 
   const fetchOverviewData = async () => {
-    if (!activeChapter) return;
     setLoading(true);
     
     // Fetch counts from `/api/v1/analytics/overview/`
-    const { status, data } = await apiRequest(`/api/v1/analytics/overview/?chapter=${activeChapter.slug}`, 'GET', null, true);
+    const { status, data } = await apiRequest('/api/v1/analytics/overview/', 'GET', null, true);
     if (status === 200) {
       setCounts({
         events: data.total_events || 3,
@@ -53,7 +52,7 @@ export default function DashboardOverview() {
     }
 
     // Fetch recent events
-    const eventRes = await apiRequest(`/api/v1/events/?chapter=${activeChapter.slug}`, 'GET', null, true);
+    const eventRes = await apiRequest('/api/v1/events/', 'GET', null, true);
     if (eventRes.status === 200) {
       setRecentEvents(eventRes.data.slice(0, 3));
     }
@@ -62,7 +61,7 @@ export default function DashboardOverview() {
 
   useEffect(() => {
     fetchOverviewData();
-  }, [activeChapter]);
+  }, []);
 
   const quickActions = [
     { label: 'Create Event', icon: Plus, onClick: () => navigate('/dashboard/events') },
