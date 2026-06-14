@@ -29,6 +29,9 @@ export default function EventList() {
   const [newTitle, setNewTitle] = useState('DevOps Deployment CodeLab');
   const [newVenue, setNewVenue] = useState('Google Seattle');
   const [newCapacity, setNewCapacity] = useState('150');
+  const [newType, setNewType] = useState('physical');
+  const [newCategory, setNewCategory] = useState('workshop');
+  const [newCoverImage, setNewCoverImage] = useState('');
 
   const fetchEventsData = async () => {
     setLoading(true);
@@ -52,9 +55,11 @@ export default function EventList() {
     const { status, data } = await apiRequest('/api/v1/events/', 'POST', {
       title: newTitle,
       description: 'Hands-on DevOps pipeline integrations, CI/CD models review, and containerized deployment scheduling.',
-      type: 'physical',
+      type: newType,
+      category: newCategory,
       capacity: parseInt(newCapacity),
       venue: newVenue,
+      cover_image: newCoverImage,
       start_time: start_time.toISOString(),
       end_time: end_time.toISOString(),
       timezone: 'GMT+5:30',
@@ -116,8 +121,10 @@ export default function EventList() {
       title: copyTitle,
       description: eventToDuplicate.description || 'Hands-on DevOps pipeline integrations, CI/CD models review, and containerized deployment scheduling.',
       type: eventToDuplicate.type || 'physical',
+      category: eventToDuplicate.category || 'workshop',
       capacity: eventToDuplicate.capacity,
       venue: eventToDuplicate.venue,
+      cover_image: eventToDuplicate.cover_image || '',
       start_time: eventToDuplicate.start_time,
       end_time: eventToDuplicate.end_time,
       timezone: eventToDuplicate.timezone || 'GMT+5:30',
@@ -181,12 +188,42 @@ export default function EventList() {
             </div>
             <div className="form-grid">
               <div className="form-group">
+                <label>Event Mode (Online/Offline)</label>
+                <select value={newType} onChange={e => setNewType(e.target.value)}>
+                  <option value="physical">Offline (Physical)</option>
+                  <option value="virtual">Online (Virtual)</option>
+                  <option value="hybrid">Hybrid</option>
+                </select>
+              </div>
+              <div className="form-group">
+                <label>Event Category (Type of Event)</label>
+                <select value={newCategory} onChange={e => setNewCategory(e.target.value)}>
+                  <option value="workshop">Workshop</option>
+                  <option value="bootcamp">Bootcamp</option>
+                  <option value="introduction">Introduction</option>
+                  <option value="speaker_session">Speaker Session</option>
+                  <option value="hackathon">Hackathon</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+            </div>
+            <div className="form-grid">
+              <div className="form-group">
                 <label>Total Seating Seating Capacity</label>
                 <input type="number" value={newCapacity} onChange={e => setNewCapacity(e.target.value)} required />
               </div>
-              <div className="form-group" style={{ justifyContent: 'flex-end' }}>
-                <button className="btn btn-primary" type="submit" style={{ width: '100%' }}>Create Event Draft</button>
+              <div className="form-group">
+                <label>Cover Image / Banner URL</label>
+                <input 
+                  type="url" 
+                  placeholder="https://example.com/banner.png" 
+                  value={newCoverImage} 
+                  onChange={e => setNewCoverImage(e.target.value)} 
+                />
               </div>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+              <button className="btn btn-primary" type="submit" style={{ width: '100%' }}>Create Event Draft</button>
             </div>
           </form>
         </DashboardCard>
@@ -225,7 +262,7 @@ export default function EventList() {
               key={event.id}
               event={event}
               onEdit={(id) => navigate(`/dashboard/events/${id}/overview`)}
-              onView={(id) => navigate(`/dashboard/events/${id}/overview`)}
+              onView={(id) => window.open(`/events/${id}`, '_blank')}
               onDuplicate={handleDuplicateEvent}
               onDelete={handleDeleteDraft}
               onTransition={handleTransitionState}

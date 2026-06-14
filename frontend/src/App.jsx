@@ -1,7 +1,8 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import AuthPage from './pages/AuthPage';
+import PublicEventPage from './pages/PublicEventPage';
 import DashboardOverview from './pages/dashboard/DashboardOverview';
 import AnalyticsDashboard from './pages/dashboard/AnalyticsDashboard';
 import EventList from './pages/dashboard/EventList';
@@ -13,6 +14,11 @@ import SponsorsDashboard from './pages/dashboard/SponsorsDashboard';
 import SettingsWorkspace from './pages/dashboard/SettingsWorkspace';
 import './App.css';
 
+function EventDetailRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/dashboard/events/${id}/overview`} replace />;
+}
+
 function MainLayout() {
   return (
     <Routes>
@@ -22,12 +28,15 @@ function MainLayout() {
       {/* AUTHENTICATION PORTAL */}
       <Route path="/auth/login" element={<AuthPage />} />
       
+      {/* PUBLIC EVENT PAGE */}
+      <Route path="/events/:id" element={<PublicEventPage />} />
+      
       {/* INTERNAL EVENT MANAGEMENT DASHBOARD ROUTES */}
       <Route path="/dashboard" element={<DashboardOverview />} />
       <Route path="/dashboard/analytics" element={<Navigate to="/dashboard/analytics/overview" replace />} />
       <Route path="/dashboard/analytics/:tab" element={<AnalyticsDashboard />} />
       <Route path="/dashboard/events" element={<EventList />} />
-      <Route path="/dashboard/events/:id" element={<Navigate to="overview" replace />} />
+      <Route path="/dashboard/events/:id" element={<EventDetailRedirect />} />
       <Route path="/dashboard/events/:id/:tab" element={<EventDetailWorkspace />} />
       <Route path="/dashboard/registrations" element={<RegistrationsDashboard />} />
       <Route path="/dashboard/members" element={<MembersDashboard />} />

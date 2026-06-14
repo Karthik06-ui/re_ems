@@ -43,43 +43,27 @@ export default function EventDetailWorkspace() {
   const [loading, setLoading] = useState(true);
   
   // Registration list
-  const [registrations, setRegistrations] = useState([
-    { email: 'karthik@gdgdemo.org', ticket_type: 'General Admission', date: '2026-Jun-09', status: 'confirmed' },
-    { email: 'guest.user@college.edu', ticket_type: 'General Admission', date: '2026-Jun-09', status: 'checked_in' },
-    { email: 'developer.lead@kumaraguru.edu', ticket_type: 'VIP Pass', date: '2026-Jun-10', status: 'confirmed' }
-  ]);
+  const [registrations, setRegistrations] = useState([]);
 
   // Waitlist list
-  const [waitlist, setWaitlist] = useState([
-    { position: 1, email: 'waitlist.one@college.edu', date: '2026-Jun-10' },
-    { position: 2, email: 'waitlist.two@college.edu', date: '2026-Jun-10' }
-  ]);
+  const [waitlist, setWaitlist] = useState([]);
 
   // Agenda Sessions list
-  const [sessions, setSessions] = useState([
-    { id: 1, title: 'Keynote: Era of Infinite Software', duration: '40m', track: 'Keynote', speaker: 'Dr. Jane Smith' },
-    { id: 2, title: 'Optimizing Vite & Rollup Bundling', duration: '30m', track: 'Frontend', speaker: 'Deepika Kumar' }
-  ]);
+  const [sessions, setSessions] = useState([]);
 
   // Session form inputs
   const [sesTitle, setSesTitle] = useState('');
   const [sesDuration, setSesDuration] = useState('30m');
   const [sesTrack, setSesTrack] = useState('Frontend');
-  const [sesSpeaker, setSesSpeaker] = useState('Dr. Jane Smith');
+  const [sesSpeaker, setSesSpeaker] = useState('');
 
   // Speakers list
-  const [speakers, setSpeakers] = useState([
-    { id: 1, name: 'Dr. Jane Smith', bio: 'Principal Web Architect & Google Developer Expert', avatar: 'https://i.pravatar.cc/100?img=1' },
-    { id: 2, name: 'Deepika Kumar', bio: 'Staff Engineer & Chapter Lead at GDG Coimbatore', avatar: 'https://i.pravatar.cc/100?img=2' }
-  ]);
+  const [speakers, setSpeakers] = useState([]);
   const [spName, setSpName] = useState('');
   const [spBio, setSpBio] = useState('');
 
   // Survey Questions list
-  const [surveyQuestions, setSurveyQuestions] = useState([
-    { id: 1, text: 'What is your primary programming language?', type: 'Multiple Choice' },
-    { id: 2, text: 'What do you hope to learn in this workshop?', type: 'Free Text' }
-  ]);
+  const [surveyQuestions, setSurveyQuestions] = useState([]);
   const [newQuestionText, setNewQuestionText] = useState('');
   const [newQuestionType, setNewQuestionType] = useState('Multiple Choice');
 
@@ -88,12 +72,13 @@ export default function EventDetailWorkspace() {
   const [venue, setVenue] = useState('');
   const [capacity, setCapacity] = useState(100);
   const [statusVal, setStatusVal] = useState('draft');
+  const [typeVal, setTypeVal] = useState('physical');
+  const [categoryVal, setCategoryVal] = useState('workshop');
+  const [coverImage, setCoverImage] = useState('');
   const [saving, setSaving] = useState(false);
 
   // Communications announcements list
-  const [announcements, setAnnouncements] = useState([
-    { id: 1, subject: 'Event Seating Directions', date: '2026-Jun-10', recipients: 'All Confirmed Attendees' }
-  ]);
+  const [announcements, setAnnouncements] = useState([]);
   const [annSubject, setAnnSubject] = useState('');
   const [annBody, setAnnBody] = useState('');
 
@@ -106,13 +91,56 @@ export default function EventDetailWorkspace() {
 
   const fetchWorkspaceDetails = async () => {
     setLoading(true);
-    const { status, data } = await apiRequest(`/api/v1/events/${id}/`, 'GET', null, false);
+    const { status, data } = await apiRequest(`/api/v1/events/${id}/`, 'GET', null, true);
     if (status === 200) {
       setEvent(data);
       setTitle(data.title);
       setVenue(data.venue);
       setCapacity(data.capacity);
       setStatusVal(data.status);
+      setTypeVal(data.type || 'physical');
+      setCategoryVal(data.category || 'workshop');
+      setCoverImage(data.cover_image || '');
+      setSpeakers(data.speakers || []);
+      setSessions(data.sessions || []);
+      setSurveyQuestions(data.survey_questions || []);
+      
+      setAnnouncements(data.announcements ? data.announcements.map(ann => ({
+        id: ann.id,
+        subject: ann.subject,
+        body: ann.body,
+        recipients: ann.recipients,
+        date: new Date(ann.created_at).toLocaleDateString([], { year: 'numeric', month: 'short', day: '2-digit' })
+      })) : []);
+
+      // If sesSpeaker is empty and speakers exist, set it to the first speaker name as default
+      if (!sesSpeaker && data.speakers && data.speakers.length > 0) {
+        setSesSpeaker(data.speakers[0].name);
+      }
+
+      // Fetch registrations and waitlist
+      const regRes = await apiRequest(`/api/v1/events/${id}/registrations/`, 'GET', null, true);
+      if (regRes.status === 200) {
+        const mappedRegs = regRes.data.map(r => ({
+          id: r.id,
+          email: r.user?.email || 'unknown',
+          ticket_type: r.ticket_type === 'general' ? 'General Admission' : r.ticket_type,
+          date: new Date(r.registered_at).toLocaleDateString([], { year: 'numeric', month: 'short', day: '2-digit' }),
+          status: r.status
+        }));
+        setRegistrations(mappedRegs);
+      }
+
+      const wlRes = await apiRequest(`/api/v1/events/${id}/waitlist/`, 'GET', null, true);
+      if (wlRes.status === 200) {
+        const mappedWl = wlRes.data.map(w => ({
+          id: w.id,
+          position: w.position,
+          email: w.user?.email || 'unknown',
+          date: new Date(w.created_at).toLocaleDateString([], { year: 'numeric', month: 'short', day: '2-digit' })
+        }));
+        setWaitlist(mappedWl);
+      }
     }
     setLoading(false);
   };
@@ -145,7 +173,10 @@ export default function EventDetailWorkspace() {
       title,
       venue,
       capacity: parseInt(capacity),
-      status: statusVal
+      status: statusVal,
+      type: typeVal,
+      category: categoryVal,
+      cover_image: coverImage
     }, true);
 
     if (status === 200) {
@@ -165,8 +196,10 @@ export default function EventDetailWorkspace() {
       title: copyTitle,
       description: eventToDuplicate.description || 'Hands-on DevOps pipeline integrations, CI/CD models review, and containerized deployment scheduling.',
       type: eventToDuplicate.type || 'physical',
+      category: eventToDuplicate.category || 'workshop',
       capacity: eventToDuplicate.capacity,
       venue: eventToDuplicate.venue,
+      cover_image: eventToDuplicate.cover_image || '',
       start_time: eventToDuplicate.start_time,
       end_time: eventToDuplicate.end_time,
       timezone: eventToDuplicate.timezone || 'GMT+5:30',
@@ -192,8 +225,8 @@ export default function EventDetailWorkspace() {
     }, true);
 
     if (status === 200) {
-      setRegistrations(prev => prev.map(r => r.email === emailToSubmit ? { ...r, status: 'checked_in' } : r));
       alert(`Registrant successfully checked in: ${emailToSubmit}`);
+      fetchWorkspaceDetails();
     } else {
       alert('Check-in failed. Please verify user status.');
     }
@@ -201,15 +234,14 @@ export default function EventDetailWorkspace() {
 
   // Promote registrant from waitlist
   const handlePromoteAttendee = async (emailToPromote) => {
-    // Call registration endpoint (will promote FIFO)
-    const { status } = await apiRequest(`/api/v1/events/${id}/register/`, 'POST', {}, true);
-    if (status === 201 || status === 202) {
-      // Simulate frontend shift
-      setWaitlist(prev => prev.filter(w => w.email !== emailToPromote).map((w, idx) => ({ ...w, position: idx + 1 })));
-      setRegistrations(prev => [...prev, { email: emailToPromote, ticket_type: 'General Admission', date: '2026-Jun-10', status: 'confirmed' }]);
+    const { status, data } = await apiRequest(`/api/v1/events/${id}/promote/`, 'POST', {
+      email: emailToPromote
+    }, true);
+    if (status === 200) {
       alert(`Seat promoted to Confirmed: ${emailToPromote}`);
+      fetchWorkspaceDetails();
     } else {
-      alert('Promotion failed.');
+      alert('Promotion failed: ' + (data?.detail || JSON.stringify(data)));
     }
   };
 
@@ -243,56 +275,83 @@ export default function EventDetailWorkspace() {
   };
 
   // Agenda Session Actions
-  const handleAddSession = (e) => {
+  const handleAddSession = async (e) => {
     e.preventDefault();
     if (!sesTitle) return;
-    const newSes = {
-      id: Date.now(),
+    const { status, data } = await apiRequest('/api/v1/events/sessions/', 'POST', {
+      event: parseInt(id),
       title: sesTitle,
       duration: sesDuration,
       track: sesTrack,
-      speaker: sesSpeaker
-    };
-    setSessions(prev => [...prev, newSes]);
-    setSesTitle('');
+      speaker: sesSpeaker || '',
+      order: sessions.length
+    }, true);
+
+    if (status === 201) {
+      setSesTitle('');
+      fetchWorkspaceDetails();
+    } else {
+      alert('Failed to add session: ' + JSON.stringify(data));
+    }
   };
 
-  const handleMoveSession = (idx, direction) => {
+  const handleMoveSession = async (idx, direction) => {
     const nextIdx = direction === 'up' ? idx - 1 : idx + 1;
     if (nextIdx < 0 || nextIdx >= sessions.length) return;
     const reordered = [...sessions];
     const temp = reordered[idx];
     reordered[idx] = reordered[nextIdx];
     reordered[nextIdx] = temp;
-    setSessions(reordered);
+
+    const sessionIds = reordered.map(s => s.id);
+    const { status, data } = await apiRequest(`/api/v1/events/${id}/reorder_sessions/`, 'POST', {
+      session_ids: sessionIds
+    }, true);
+
+    if (status === 200) {
+      fetchWorkspaceDetails();
+    } else {
+      alert("Failed to save session order: " + JSON.stringify(data));
+    }
   };
 
   // Speaker Add
-  const handleAddSpeaker = (e) => {
+  const handleAddSpeaker = async (e) => {
     e.preventDefault();
     if (!spName) return;
-    const newSp = {
-      id: Date.now(),
+    const avatarUrl = `https://i.pravatar.cc/100?img=${speakers.length + 3}`;
+    const { status, data } = await apiRequest('/api/v1/events/speakers/', 'POST', {
+      event: parseInt(id),
       name: spName,
       bio: spBio,
-      avatar: 'https://i.pravatar.cc/100?img=' + (speakers.length + 3)
-    };
-    setSpeakers(prev => [...prev, newSp]);
-    setSpName('');
-    setSpBio('');
+      avatar: avatarUrl
+    }, true);
+
+    if (status === 201) {
+      setSpName('');
+      setSpBio('');
+      fetchWorkspaceDetails();
+    } else {
+      alert('Failed to add speaker: ' + JSON.stringify(data));
+    }
   };
 
   // Survey Add Question
-  const handleAddQuestion = (e) => {
+  const handleAddQuestion = async (e) => {
     e.preventDefault();
     if (!newQuestionText) return;
-    const newQ = {
-      id: Date.now(),
+    const { status, data } = await apiRequest('/api/v1/events/survey-questions/', 'POST', {
+      event: parseInt(id),
       text: newQuestionText,
       type: newQuestionType
-    };
-    setSurveyQuestions(prev => [...prev, newQ]);
-    setNewQuestionText('');
+    }, true);
+
+    if (status === 201) {
+      setNewQuestionText('');
+      fetchWorkspaceDetails();
+    } else {
+      alert('Failed to add survey question: ' + JSON.stringify(data));
+    }
   };
 
   // CSV Export Mock
@@ -315,6 +374,20 @@ export default function EventDetailWorkspace() {
         <div className="gdg-spinner-container">
           <div className="gdg-spinner"></div>
           <span>Syncing workspace timelines...</span>
+        </div>
+      </DashboardShell>
+    );
+  }
+
+  if (!event) {
+    return (
+      <DashboardShell sectionTitle="Events">
+        <div style={{ textAlign: 'center', padding: '40px', backgroundColor: '#FFF', borderRadius: '8px', border: '1px solid var(--gdg-border)' }}>
+          <h2 style={{ color: 'var(--gdg-error)', fontSize: '20px', fontWeight: 500 }}>Event Not Found</h2>
+          <p style={{ color: 'var(--gdg-text-secondary)', fontSize: '14px', margin: '12px 0 20px 0' }}>
+            The requested event workspace could not be loaded. It may have been deleted, or you do not have administrative permissions.
+          </p>
+          <Link to="/dashboard/events" className="btn btn-primary" style={{ textDecoration: 'none' }}>Back to Events Directory</Link>
         </div>
       </DashboardShell>
     );
@@ -452,6 +525,27 @@ export default function EventDetailWorkspace() {
                   <input type="number" value={capacity} onChange={e => setCapacity(parseInt(e.target.value))} required />
                 </div>
               </div>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Event Mode (Online/Offline)</label>
+                  <select value={typeVal} onChange={e => setTypeVal(e.target.value)}>
+                    <option value="physical">Offline (Physical)</option>
+                    <option value="virtual">Online (Virtual)</option>
+                    <option value="hybrid">Hybrid</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label>Event Category (Type of Event)</label>
+                  <select value={categoryVal} onChange={e => setCategoryVal(e.target.value)}>
+                    <option value="workshop">Workshop</option>
+                    <option value="bootcamp">Bootcamp</option>
+                    <option value="introduction">Introduction</option>
+                    <option value="speaker_session">Speaker Session</option>
+                    <option value="hackathon">Hackathon</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
               <div className="form-group">
                 <label>Lifecycle Status (State Machine)</label>
                 <select value={statusVal} onChange={e => setStatusVal(e.target.value)}>
@@ -462,6 +556,15 @@ export default function EventDetailWorkspace() {
                   <option value="completed">Completed</option>
                   <option value="archived">Archived</option>
                 </select>
+              </div>
+              <div className="form-group">
+                <label>Cover Image / Banner URL</label>
+                <input 
+                  type="url" 
+                  placeholder="https://example.com/banner.png" 
+                  value={coverImage} 
+                  onChange={e => setCoverImage(e.target.value)} 
+                />
               </div>
               
               <button className="btn btn-primary" type="submit" style={{ alignSelf: 'flex-start' }} disabled={saving}>
@@ -489,7 +592,21 @@ export default function EventDetailWorkspace() {
                     <div style={{ display: 'flex', gap: '4px' }}>
                       <button className="gdg-share-icon-btn" style={{ width: '24px', height: '24px' }} onClick={() => handleMoveSession(idx, 'up')} disabled={idx === 0}><ArrowUp size={12} /></button>
                       <button className="gdg-share-icon-btn" style={{ width: '24px', height: '24px' }} onClick={() => handleMoveSession(idx, 'down')} disabled={idx === sessions.length - 1}><ArrowDown size={12} /></button>
-                      <button className="gdg-share-icon-btn" style={{ width: '24px', height: '24px', color: 'var(--gdg-error)' }} onClick={() => setSessions(prev => prev.filter(s => s.id !== ses.id))}><Trash2 size={12} /></button>
+                      <button 
+                        className="gdg-share-icon-btn" 
+                        style={{ width: '24px', height: '24px', color: 'var(--gdg-error)' }} 
+                        onClick={async () => {
+                          if (!window.confirm("Remove this session?")) return;
+                          const res = await apiRequest(`/api/v1/events/sessions/${ses.id}/`, 'DELETE', null, true);
+                          if (res.status === 200 || res.status === 204) {
+                            fetchWorkspaceDetails();
+                          } else {
+                            alert("Failed to delete session.");
+                          }
+                        }}
+                      >
+                        <Trash2 size={12} />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -541,7 +658,21 @@ export default function EventDetailWorkspace() {
                         <span style={{ display: 'block', fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>{sp.bio}</span>
                       </div>
                     </div>
-                    <button className="gdg-share-icon-btn" style={{ color: 'var(--gdg-error)' }} onClick={() => setSpeakers(prev => prev.filter(s => s.id !== sp.id))}><Trash2 size={12} /></button>
+                    <button 
+                      className="gdg-share-icon-btn" 
+                      style={{ color: 'var(--gdg-error)' }} 
+                      onClick={async () => {
+                        if (!window.confirm("Remove this speaker?")) return;
+                        const res = await apiRequest(`/api/v1/events/speakers/${sp.id}/`, 'DELETE', null, true);
+                        if (res.status === 200 || res.status === 204) {
+                          fetchWorkspaceDetails();
+                        } else {
+                          alert("Failed to delete speaker.");
+                        }
+                      }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -606,7 +737,21 @@ export default function EventDetailWorkspace() {
                       <span style={{ fontSize: '13px', fontWeight: 500 }}>{q.text}</span>
                       <span style={{ display: 'block', fontSize: '11px', color: 'var(--gdg-blue)', marginTop: '2px', fontWeight: 'bold' }}>{q.type.toUpperCase()}</span>
                     </div>
-                    <button className="gdg-share-icon-btn" style={{ color: 'var(--gdg-error)' }} onClick={() => setSurveyQuestions(prev => prev.filter(s => s.id !== q.id))}><Trash2 size={12} /></button>
+                    <button 
+                      className="gdg-share-icon-btn" 
+                      style={{ color: 'var(--gdg-error)' }} 
+                      onClick={async () => {
+                        if (!window.confirm("Delete this survey question?")) return;
+                        const res = await apiRequest(`/api/v1/events/survey-questions/${q.id}/`, 'DELETE', null, true);
+                        if (res.status === 200 || res.status === 204) {
+                          fetchWorkspaceDetails();
+                        } else {
+                          alert("Failed to delete survey question.");
+                        }
+                      }}
+                    >
+                      <Trash2 size={12} />
+                    </button>
                   </div>
                 ))}
               </div>
@@ -715,13 +860,24 @@ export default function EventDetailWorkspace() {
         {tab === 'communications' && (
           <div className="gdg-grid-2-1">
             <DashboardCard title="Event Announcement Dispatcher">
-              <form onSubmit={(e) => {
+              <form onSubmit={async (e) => {
                 e.preventDefault();
                 if (!annSubject) return;
-                setAnnouncements(prev => [...prev, { id: Date.now(), subject: annSubject, date: new Date().toLocaleDateString(), recipients: 'Confirmed Attendees' }]);
-                setAnnSubject('');
-                setAnnBody('');
-                alert('Announcement successfully dispatched!');
+                const { status, data } = await apiRequest('/api/v1/events/announcements/', 'POST', {
+                  event: parseInt(id),
+                  subject: annSubject,
+                  body: annBody,
+                  recipients: 'Confirmed Attendees'
+                }, true);
+
+                if (status === 201) {
+                  setAnnSubject('');
+                  setAnnBody('');
+                  alert('Announcement successfully dispatched!');
+                  fetchWorkspaceDetails();
+                } else {
+                  alert('Failed to send announcement: ' + JSON.stringify(data));
+                }
               }} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div className="form-group">
                   <label>Announcement Subject</label>

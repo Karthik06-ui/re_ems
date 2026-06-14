@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Event, Registration, Waitlist, Speaker
+from .models import Event, Registration, Waitlist, Speaker, Session, SurveyQuestion, Announcement
 
 @admin.register(Event)
 class EventAdmin(admin.ModelAdmin):
@@ -22,3 +22,22 @@ class WaitlistAdmin(admin.ModelAdmin):
 class SpeakerAdmin(admin.ModelAdmin):
     list_display = ('name', 'event')
     search_fields = ('name', 'event__title')
+
+@admin.register(Session)
+class SessionAdmin(admin.ModelAdmin):
+    list_display = ('title', 'event', 'duration', 'track', 'speaker', 'order')
+    list_filter = ('event',)
+    search_fields = ('title', 'speaker')
+
+@admin.register(SurveyQuestion)
+class SurveyQuestionAdmin(admin.ModelAdmin):
+    list_display = ('text', 'event', 'type')
+    list_filter = ('event', 'type')
+    search_fields = ('text',)
+
+@admin.register(Announcement)
+class AnnouncementAdmin(admin.ModelAdmin):
+    list_display = ('subject', 'event', 'recipients', 'created_at')
+    list_filter = ('event', 'created_at')
+    search_fields = ('subject', 'body')
+

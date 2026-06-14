@@ -158,7 +158,7 @@ export function EventCard({ event, onEdit, onView, onDuplicate, onDelete, onTran
             <span>|</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
               <Monitor size={14} />
-              {event.type.toUpperCase()}
+              {(event.category || 'workshop').toUpperCase()} • {event.type.toUpperCase()}
             </span>
             <span>|</span>
             <EventStatusBadge status={event.status} />
@@ -245,6 +245,9 @@ export function EventCard({ event, onEdit, onView, onDuplicate, onDelete, onTran
         width: '180px', 
         height: '180px', 
         backgroundColor: '#1a1a2e', 
+        backgroundImage: event.cover_image ? `url(${event.cover_image})` : 'none',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
         borderRadius: '8px',
         display: 'flex',
         flexDirection: 'column',
@@ -254,13 +257,17 @@ export function EventCard({ event, onEdit, onView, onDuplicate, onDelete, onTran
         position: 'relative',
         overflow: 'hidden'
       }}>
-        <div style={{ display: 'flex', gap: '2px', marginBottom: '8px' }}>
-          <span className="logo-red" style={{ fontSize: '20px' }}>●</span>
-          <span className="logo-blue" style={{ fontSize: '20px' }}>●</span>
-          <span className="logo-yellow" style={{ fontSize: '20px' }}>●</span>
-          <span className="logo-green" style={{ fontSize: '20px' }}>●</span>
-        </div>
-        <span style={{ fontSize: '11px', color: '#8b8ba0', fontWeight: 'bold' }}>GDG Chapter Event</span>
+        {!event.cover_image && (
+          <>
+            <div style={{ display: 'flex', gap: '2px', marginBottom: '8px' }}>
+              <span className="logo-red" style={{ fontSize: '20px' }}>●</span>
+              <span className="logo-blue" style={{ fontSize: '20px' }}>●</span>
+              <span className="logo-yellow" style={{ fontSize: '20px' }}>●</span>
+              <span className="logo-green" style={{ fontSize: '20px' }}>●</span>
+            </div>
+            <span style={{ fontSize: '11px', color: '#8b8ba0', fontWeight: 'bold' }}>GDG Chapter Event</span>
+          </>
+        )}
       </div>
 
     </div>

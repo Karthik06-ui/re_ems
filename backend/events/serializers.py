@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Event, Registration, Waitlist, Speaker
+from .models import Event, Registration, Waitlist, Speaker, Session, SurveyQuestion, Announcement
 from authentication.serializers import UserSerializer
 
 User = get_user_model()
@@ -8,20 +8,40 @@ User = get_user_model()
 class SpeakerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Speaker
-        fields = ('id', 'name', 'bio', 'avatar')
+        fields = ('id', 'event', 'name', 'bio', 'avatar')
+
+class SessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Session
+        fields = ('id', 'event', 'title', 'duration', 'track', 'speaker', 'order')
+
+class SurveyQuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SurveyQuestion
+        fields = ('id', 'event', 'text', 'type')
+
+class AnnouncementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Announcement
+        fields = ('id', 'event', 'subject', 'body', 'recipients', 'created_at')
 
 class EventSerializer(serializers.ModelSerializer):
     speakers = SpeakerSerializer(many=True, read_only=True)
+    sessions = SessionSerializer(many=True, read_only=True)
+    survey_questions = SurveyQuestionSerializer(many=True, read_only=True)
+    announcements = AnnouncementSerializer(many=True, read_only=True)
     registration_count = serializers.SerializerMethodField()
     waitlist_count = serializers.SerializerMethodField()
+    user_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Event
         fields = (
-            'id', 'title', 'description', 'type', 'status',
+            'id', 'title', 'description', 'type', 'status', 'category',
             'start_time', 'end_time', 'timezone', 'venue', 'capacity',
-            'cover_image', 'created_at', 'speakers',
-            'registration_count', 'waitlist_count'
+            'cover_image', 'created_at', 'speakers', 'sessions',
+            'survey_questions', 'announcements',
+            'registration_count', 'waitlist_count', 'user_status'
         )
         read_only_fields = ('id', 'created_at')
 
@@ -30,6 +50,28 @@ class EventSerializer(serializers.ModelSerializer):
 
     def get_waitlist_count(self, obj):
         return obj.waitlists.count()
+
+    def get_user_status(self, obj):
+        request = self.context.get('request')
+        if not request or not request.user or not request.user.is_authenticated:
+            return None
+        
+        reg = obj.registrations.filter(user=request.user).exclude(status=Registration.Status.CANCELLED).first()
+        if reg:
+            return {
+                'type': 'registration',
+                'status': reg.status,
+                'ticket_type': reg.ticket_type
+            }
+            
+        wl = obj.waitlists.filter(user=request.user).first()
+        if wl:
+            return {
+                'type': 'waitlist',
+                'position': wl.position
+            }
+            
+        return None
 
     def validate(self, attrs):
         start_time = attrs.get('start_time')

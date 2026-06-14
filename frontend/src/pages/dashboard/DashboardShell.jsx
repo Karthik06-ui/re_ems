@@ -60,45 +60,6 @@ export default function DashboardShell({ children, sectionTitle }) {
     return <Navigate to="/auth/login" replace />;
   }
 
-  if (user.role !== 'platform_admin' && user.role !== 'chapter_lead' && user.role !== 'organizer') {
-    const handleUnauthorizedAction = () => {
-      logout();
-      navigate('/auth/login');
-    };
-
-    return (
-      <div style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        alignItems: 'center', 
-        justifyContent: 'center', 
-        height: '100vh', 
-        fontFamily: 'system-ui, sans-serif',
-        backgroundColor: '#F8F9FA',
-        padding: '24px',
-        textAlign: 'center'
-      }}>
-        <div style={{ 
-          maxWidth: '400px', 
-          backgroundColor: '#FFF', 
-          padding: '32px', 
-          borderRadius: '8px', 
-          border: '1px solid #E8EAED',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.1)' 
-        }}>
-          <h2 style={{ color: '#EA4335', fontSize: '20px', fontWeight: 500, margin: '0 0 12px 0' }}>Unauthorized Access</h2>
-          <p style={{ color: '#5F6368', fontSize: '14px', lineHeight: 1.5, margin: '0 0 24px 0' }}>
-            Administrative or Chapter Organizer credentials are required to enter this workspace.
-          </p>
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-            <button onClick={handleUnauthorizedAction} className="btn btn-primary" style={{ cursor: 'pointer' }}>Login</button>
-            <button onClick={handleUnauthorizedAction} className="btn btn-secondary" style={{ cursor: 'pointer' }}>Back Home</button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="gdg-dashboard-shell">
       {/* 1. FIXED TOP FEEDBACK BANNER */}

@@ -17,10 +17,19 @@ class Event(models.Model):
         CANCELLED = 'cancelled', 'Cancelled'
         HIDDEN = 'hidden', 'Hidden'
 
+    class EventCategory(models.TextChoices):
+        WORKSHOP = 'workshop', 'Workshop'
+        BOOTCAMP = 'bootcamp', 'Bootcamp'
+        INTRODUCTION = 'introduction', 'Introduction'
+        SPEAKER_SESSION = 'speaker_session', 'Speaker Session'
+        HACKATHON = 'hackathon', 'Hackathon'
+        OTHER = 'other', 'Other'
+
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     type = models.CharField(max_length=50, choices=EventType.choices, default=EventType.PHYSICAL)
     status = models.CharField(max_length=50, choices=EventStatus.choices, default=EventStatus.DRAFT)
+    category = models.CharField(max_length=50, choices=EventCategory.choices, default=EventCategory.WORKSHOP)
     start_time = models.DateTimeField()
     end_time = models.DateTimeField()
     timezone = models.CharField(max_length=100, default='UTC')
@@ -73,3 +82,39 @@ class Speaker(models.Model):
 
     def __str__(self):
         return self.name
+
+class Session(models.Model):
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='sessions')
+    title = models.CharField(max_length=255)
+    duration = models.CharField(max_length=50, default='30m')
+    track = models.CharField(max_length=100, blank=True)
+    speaker = models.CharField(max_length=255, blank=True)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ['order']
+
+    def __str__(self):
+        return f"{self.title} ({self.duration})"
+
+class SurveyQuestion(models.Model):
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='survey_questions')
+    text = models.CharField(max_length=500)
+    type = models.CharField(max_length=100, default='Multiple Choice')
+
+    def __str__(self):
+        return self.text
+
+class Announcement(models.Model):
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='announcements')
+    subject = models.CharField(max_length=255)
+    body = models.TextField()
+    recipients = models.CharField(max_length=255, default='Confirmed Attendees')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.subject
+

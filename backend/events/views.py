@@ -6,8 +6,11 @@ from django.db import transaction
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 
-from .models import Event, Registration, Waitlist, Speaker
-from .serializers import EventSerializer, RegistrationSerializer, WaitlistSerializer, SpeakerSerializer
+from .models import Event, Registration, Waitlist, Speaker, Session, SurveyQuestion, Announcement
+from .serializers import (
+    EventSerializer, RegistrationSerializer, WaitlistSerializer, SpeakerSerializer,
+    SessionSerializer, SurveyQuestionSerializer, AnnouncementSerializer
+)
 from authentication.models import User
 
 class EventViewSet(viewsets.ModelViewSet):
@@ -23,7 +26,7 @@ class EventViewSet(viewsets.ModelViewSet):
         queryset = super().get_queryset()
         # Public users can only see published events
         user = self.request.user
-        if not user or not user.is_authenticated or user.role == User.Role.MEMBER:
+        if not user or not user.is_authenticated:
             queryset = queryset.filter(status=Event.EventStatus.PUBLISHED)
         return queryset
 
@@ -172,3 +175,73 @@ class EventViewSet(viewsets.ModelViewSet):
         
         serializer = RegistrationSerializer(reg)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    def registrations(self, request, pk=None):
+        event = self.get_object()
+        regs = event.registrations.all().order_by('registered_at')
+        serializer = RegistrationSerializer(regs, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    def waitlist(self, request, pk=None):
+        event = self.get_object()
+        wl = event.waitlists.all().order_by('position')
+        serializer = WaitlistSerializer(wl, many=True)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @transaction.atomic
+    def reorder_sessions(self, request, pk=None):
+        event = self.get_object()
+        session_ids = request.data.get('session_ids', [])
+        for order, session_id in enumerate(session_ids):
+            Session.objects.filter(event=event, id=session_id).update(order=order)
+        return Response({"detail": "Sessions reordered successfully."}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    @transaction.atomic
+    def promote(self, request, pk=None):
+        event = self.get_object()
+        email = request.data.get('email')
+        if not email:
+            return Response({"detail": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+        user_to_promote = get_object_or_404(User, email=email.lower())
+        wait_entry = Waitlist.objects.filter(event=event, user=user_to_promote).first()
+        if not wait_entry:
+            return Response({"detail": "User is not on waitlist."}, status=status.HTTP_404_NOT_FOUND)
+        
+        reg, created = Registration.objects.update_or_create(
+            event=event,
+            user=user_to_promote,
+            defaults={'status': Registration.Status.CONFIRMED}
+        )
+        wait_entry.delete()
+        
+        remaining = Waitlist.objects.filter(event=event).order_by('position')
+        for idx, entry in enumerate(remaining):
+            entry.position = idx + 1
+            entry.save()
+            
+        return Response({"detail": f"Successfully promoted {email}."}, status=status.HTTP_200_OK)
+
+class SpeakerViewSet(viewsets.ModelViewSet):
+    queryset = Speaker.objects.all()
+    serializer_class = SpeakerSerializer
+    permission_classes = [IsAuthenticated]
+
+class SessionViewSet(viewsets.ModelViewSet):
+    queryset = Session.objects.all()
+    serializer_class = SessionSerializer
+    permission_classes = [IsAuthenticated]
+
+class SurveyQuestionViewSet(viewsets.ModelViewSet):
+    queryset = SurveyQuestion.objects.all()
+    serializer_class = SurveyQuestionSerializer
+    permission_classes = [IsAuthenticated]
+
+class AnnouncementViewSet(viewsets.ModelViewSet):
+    queryset = Announcement.objects.all()
+    serializer_class = AnnouncementSerializer
+    permission_classes = [IsAuthenticated]
+

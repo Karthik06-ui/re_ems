@@ -102,8 +102,10 @@ export default function DashboardOverview() {
                 {recentEvents.map(ev => (
                   <div key={ev.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--gdg-border)', paddingBottom: '10px' }}>
                     <div>
-                      <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 500 }}>{ev.title}</h4>
-                      <span style={{ fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>📍 {ev.venue} | Capacity: {ev.capacity}</span>
+                      <Link to={`/dashboard/events/${ev.id}/overview`} className="blue-link" style={{ textDecoration: 'none', fontWeight: 500, fontSize: '14px' }}>
+                        {ev.title}
+                      </Link>
+                      <div style={{ fontSize: '11px', color: 'var(--gdg-text-secondary)', marginTop: '2px' }}>📍 {ev.venue} | Capacity: {ev.capacity}</div>
                     </div>
                     <EventStatusBadge status={ev.status} />
                   </div>
