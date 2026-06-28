@@ -6,10 +6,11 @@ from django.db import transaction
 from django.utils import timezone
 from django.shortcuts import get_object_or_404
 
-from .models import Event, Registration, Waitlist, Speaker, Session, SurveyQuestion, Announcement
+from rest_framework.views import APIView
+from .models import Event, Registration, Waitlist, Speaker, Session, SurveyQuestion, Announcement, ChapterSetting
 from .serializers import (
     EventSerializer, RegistrationSerializer, WaitlistSerializer, SpeakerSerializer,
-    SessionSerializer, SurveyQuestionSerializer, AnnouncementSerializer
+    SessionSerializer, SurveyQuestionSerializer, AnnouncementSerializer, ChapterSettingSerializer
 )
 from authentication.models import User
 
@@ -37,8 +38,14 @@ class EventViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     @transaction.atomic
     def register(self, request, pk=None):
-        event = self.get_object()
         user = request.user
+        if not getattr(user, 'is_profile_completed', False):
+            return Response(
+                {"detail": "You must complete your profile before registering for events."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        event = self.get_object()
 
         # Check if already registered
         existing_reg = Registration.objects.filter(event=event, user=user).first()
@@ -116,6 +123,8 @@ class EventViewSet(viewsets.ModelViewSet):
                     user=promoted_user,
                     defaults={'status': Registration.Status.CONFIRMED}
                 )
+                from analytics.utils import log_event
+                log_event("waitlist_promotion", promoted_reg.id, None, {"email": promoted_user.email, "event_title": event.title})
                 
                 # Delete waitlist entry
                 next_waitlist.delete()
@@ -172,6 +181,8 @@ class EventViewSet(viewsets.ModelViewSet):
         reg.status = Registration.Status.CHECKED_IN
         reg.checked_in_at = timezone.now()
         reg.save()
+        from analytics.utils import log_event
+        log_event("checkin", reg.id, request.user, {"email": attendee.email, "event_title": event.title})
         
         serializer = RegistrationSerializer(reg)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -216,6 +227,8 @@ class EventViewSet(viewsets.ModelViewSet):
             user=user_to_promote,
             defaults={'status': Registration.Status.CONFIRMED}
         )
+        from analytics.utils import log_event
+        log_event("waitlist_promotion", reg.id, request.user, {"email": user_to_promote.email, "event_title": event.title})
         wait_entry.delete()
         
         remaining = Waitlist.objects.filter(event=event).order_by('position')
@@ -224,6 +237,26 @@ class EventViewSet(viewsets.ModelViewSet):
             entry.save()
             
         return Response({"detail": f"Successfully promoted {email}."}, status=status.HTTP_200_OK)
+
+class RegistrationViewSet(viewsets.ModelViewSet):
+    queryset = Registration.objects.all().order_by('-registered_at')
+    serializer_class = RegistrationSerializer
+    permission_classes = [IsAuthenticated]
+
+    @action(detail=False, methods=['post'])
+    def checkin(self, request):
+        email = request.data.get('email')
+        event_id = request.data.get('event_id')
+        if not email or not event_id:
+            return Response({"detail": "email and event_id are required."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        reg = get_object_or_404(Registration, event_id=event_id, user__email=email.lower())
+        reg.status = Registration.Status.CHECKED_IN
+        reg.checked_in_at = timezone.now()
+        reg.save()
+        from analytics.utils import log_event
+        log_event("checkin", reg.id, request.user, {"email": email, "event_title": reg.event.title})
+        return Response(self.get_serializer(reg).data)
 
 class SpeakerViewSet(viewsets.ModelViewSet):
     queryset = Speaker.objects.all()
@@ -244,4 +277,31 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
     queryset = Announcement.objects.all()
     serializer_class = AnnouncementSerializer
     permission_classes = [IsAuthenticated]
+
+
+class ChapterSettingDetailView(APIView):
+    permission_classes = [AllowAny]
+
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [AllowAny()]
+        return [IsAuthenticated()]
+
+    def get(self, request, slug):
+        setting, created = ChapterSetting.objects.get_or_create(slug=slug)
+        serializer = ChapterSettingSerializer(setting)
+        return Response(serializer.data)
+
+    def patch(self, request, slug):
+        if request.user.role not in [User.Role.PLATFORM_ADMIN, User.Role.CHAPTER_LEAD, User.Role.ORGANIZER]:
+            return Response(
+                {"detail": "You do not have permission to modify chapter settings."},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        setting, created = ChapterSetting.objects.get_or_create(slug=slug)
+        serializer = ChapterSettingSerializer(setting, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
 

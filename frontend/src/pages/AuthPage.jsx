@@ -8,8 +8,33 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   
-  // Default redirect is /dashboard
-  const nextRoute = searchParams.get('next') || '/dashboard';
+  const handleLoginRedirect = () => {
+    try {
+      const savedUser = JSON.parse(localStorage.getItem('user'));
+      const eventId = searchParams.get('event');
+      
+      if (eventId) {
+        if (savedUser?.is_profile_completed) {
+          navigate(`/portal/events/${eventId}`, { replace: true });
+        } else {
+          navigate(`/portal/profile?event=${eventId}`, { replace: true });
+        }
+      } else {
+        const isAdmin = ['platform_admin', 'chapter_lead', 'organizer'].includes(savedUser?.role);
+        if (isAdmin) {
+          navigate('/dashboard', { replace: true });
+        } else {
+          if (savedUser?.is_profile_completed) {
+            navigate('/portal', { replace: true });
+          } else {
+            navigate('/portal/profile', { replace: true });
+          }
+        }
+      }
+    } catch {
+      navigate('/portal', { replace: true });
+    }
+  };
 
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -27,14 +52,14 @@ export default function AuthPage() {
       if (isLogin) {
         const { success, error: err } = await login(email, password);
         if (success) {
-          navigate(nextRoute, { replace: true });
+          handleLoginRedirect();
         } else {
           setError(err);
         }
       } else {
         const { success, error: err } = await register(name, email, password);
         if (success) {
-          navigate(nextRoute, { replace: true });
+          handleLoginRedirect();
         } else {
           setError(err);
         }
@@ -52,7 +77,7 @@ export default function AuthPage() {
     try {
       const { success } = await login('lead@kumaraguru.gdg.dev', 'password', true);
       if (success) {
-        navigate(nextRoute, { replace: true });
+        handleLoginRedirect();
       }
     } catch (err) {
       setError('Demo Mode initialization failed.');

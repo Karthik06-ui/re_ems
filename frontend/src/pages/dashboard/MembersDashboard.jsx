@@ -31,8 +31,9 @@ export default function MembersDashboard() {
         email: item.user.email,
         role: item.role === 'chapter_lead' ? 'Chapter Lead' : item.role === 'organizer' ? 'Organizer' : 'Member',
         status: 'Active',
-        registrationsCount: 0,
-        checkinsCount: 0
+        registrationsCount: item.user.registrations_count || 0,
+        checkinsCount: item.user.checkins_count || 0,
+        eventHistory: item.user.event_history || []
       }));
       setMembers(formatted);
       if (selectedMember) {
@@ -237,14 +238,16 @@ export default function MembersDashboard() {
                 <div style={{ borderTop: '1px solid var(--gdg-border)', paddingTop: '16px' }}>
                   <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: 'var(--gdg-text-secondary)', textTransform: 'uppercase' }}>Event History Logs</h4>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ padding: '8px', border: '1px solid var(--gdg-border)', borderRadius: '6px', fontSize: '12px', background: '#F8F9FA' }}>
-                      <strong>Era of Infinite Software</strong>
-                      <p style={{ margin: '2px 0 0 0', color: 'var(--gdg-text-secondary)' }}>Checked in at entrance</p>
-                    </div>
-                    <div style={{ padding: '8px', border: '1px solid var(--gdg-border)', borderRadius: '6px', fontSize: '12px', background: '#F8F9FA' }}>
-                      <strong>Vite & Rollup workshop</strong>
-                      <p style={{ margin: '2px 0 0 0', color: 'var(--gdg-text-secondary)' }}>Seat Confirmed</p>
-                    </div>
+                    {selectedMember.eventHistory && selectedMember.eventHistory.length > 0 ? (
+                      selectedMember.eventHistory.map((hist, index) => (
+                        <div key={index} style={{ padding: '8px', border: '1px solid var(--gdg-border)', borderRadius: '6px', fontSize: '12px', background: '#F8F9FA' }}>
+                          <strong>{hist.event_title}</strong>
+                          <p style={{ margin: '2px 0 0 0', color: 'var(--gdg-text-secondary)' }}>{hist.status}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p style={{ fontStyle: 'italic', color: 'var(--gdg-text-secondary)', fontSize: '12px', margin: 0 }}>No registration history found.</p>
+                    )}
                   </div>
                 </div>
               </div>

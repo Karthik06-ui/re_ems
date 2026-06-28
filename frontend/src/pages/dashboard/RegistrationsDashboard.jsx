@@ -13,12 +13,7 @@ export default function RegistrationsDashboard() {
   const { apiRequest } = useAuth();
 
 
-  const [registrations, setRegistrations] = useState([
-    { email: 'karthik@gdgdemo.org', eventTitle: 'Era of Infinite Software', ticket_type: 'General Admission', date: '2026-Jun-09', status: 'confirmed' },
-    { email: 'guest.user@college.edu', eventTitle: 'Vite & Rollup workshop', ticket_type: 'General Admission', date: '2026-Jun-09', status: 'checked_in' },
-    { email: 'developer.lead@kumaraguru.edu', eventTitle: 'Era of Infinite Software', ticket_type: 'VIP Pass', date: '2026-Jun-10', status: 'confirmed' },
-    { email: 'sponsor.rep@vercel.com', eventTitle: 'React Summit', ticket_type: 'VIP Pass', date: '2026-Jun-10', status: 'checked_in' }
-  ]);
+  const [registrations, setRegistrations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [eventFilter, setEventFilter] = useState('All');
@@ -26,22 +21,62 @@ export default function RegistrationsDashboard() {
 
   const fetchRegistrations = async () => {
     setLoading(true);
-    // Mimic API sync
-    setTimeout(() => setLoading(false), 300);
+    const { status, data } = await apiRequest('/api/v1/events/registrations/', 'GET', null, true);
+    if (status === 200) {
+      setRegistrations(data.map(r => ({
+        id: r.id,
+        eventId: r.event,
+        email: r.user.email,
+        eventTitle: r.event_title || 'General Event',
+        ticket_type: r.ticket_type === 'general' ? 'General Admission' : r.ticket_type,
+        date: new Date(r.registered_at).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' }),
+        status: r.status
+      })));
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchRegistrations();
   }, []);
 
-  const handleCheckin = (email) => {
-    setRegistrations(prev => prev.map(r => r.email === email ? { ...r, status: 'checked_in' } : r));
-    alert(`Attendee successfully checked in: ${email}`);
+  const handleCheckin = async (email) => {
+    const reg = registrations.find(r => r.email === email);
+    if (!reg) return;
+
+    const { status, data } = await apiRequest('/api/v1/events/registrations/checkin/', 'POST', {
+      email: email,
+      event_id: reg.eventId
+    }, true);
+
+    if (status === 200 || status === 201) {
+      fetchRegistrations();
+      alert(`Attendee successfully checked in: ${email}`);
+    } else {
+      alert(data?.detail || 'Failed to check-in attendee.');
+    }
   };
 
-  const handleBulkCheckin = () => {
-    setRegistrations(prev => prev.map(r => ({ ...r, status: 'checked_in' })));
-    alert('All listed attendees checked in successfully!');
+  const handleBulkCheckin = async () => {
+    const unconfirmed = filtered.filter(r => r.status === 'confirmed');
+    if (unconfirmed.length === 0) {
+      alert('No confirmed registrations to check in.');
+      return;
+    }
+    
+    let successCount = 0;
+    for (const reg of unconfirmed) {
+      const { status } = await apiRequest('/api/v1/events/registrations/checkin/', 'POST', {
+        email: reg.email,
+        event_id: reg.eventId
+      }, true);
+      if (status === 200 || status === 201) {
+        successCount++;
+      }
+    }
+    
+    fetchRegistrations();
+    alert(`Bulk check-in completed: ${successCount} attendees checked in.`);
   };
 
   const handleExportCSV = () => {

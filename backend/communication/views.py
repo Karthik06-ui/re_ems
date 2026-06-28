@@ -51,5 +51,8 @@ class EmailCampaignViewSet(viewsets.ModelViewSet):
         campaign.sent_at = timezone.now()
         campaign.save()
 
+        from analytics.utils import log_event
+        log_event("campaign_sent", campaign.id, request.user, {"subject": campaign.subject})
+
         serializer = self.get_serializer(campaign)
         return Response(serializer.data, status=status.HTTP_200_OK)

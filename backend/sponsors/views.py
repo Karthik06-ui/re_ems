@@ -16,6 +16,11 @@ class SponsorViewSet(viewsets.ModelViewSet):
             return [AllowAny()]
         return [IsAuthenticated()]
 
+    def perform_create(self, serializer):
+        sponsor = serializer.save()
+        from analytics.utils import log_event
+        log_event("sponsor_added", sponsor.id, self.request.user, {"name": sponsor.name, "tier": sponsor.tier})
+
     def perform_destroy(self, instance):
         instance.deleted_at = timezone.now()
         instance.save()

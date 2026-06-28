@@ -383,6 +383,20 @@ export function WaitlistTable({ waitlist, onPromote }) {
   );
 }
 
+function formatTimeAgo(dateString) {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffMins < 1) return 'just now';
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  return `${diffDays}d ago`;
+}
+
 // 10. ActivityFeed
 export function ActivityFeed({ activities }) {
   return (
@@ -392,7 +406,9 @@ export function ActivityFeed({ activities }) {
           <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--gdg-blue)' }}></div>
           <div style={{ fontSize: '13px' }}>
             <span style={{ color: 'var(--gdg-text-primary)', fontWeight: 500 }}>{act.content}</span>
-            <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>{act.timestamp}</p>
+            <p style={{ margin: '2px 0 0 0', fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>
+              {act.timestamp && act.timestamp.includes('T') ? formatTimeAgo(act.timestamp) : act.timestamp}
+            </p>
           </div>
         </div>
       ))}

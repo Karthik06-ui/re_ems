@@ -29,12 +29,8 @@ export default function DashboardOverview() {
   });
 
   const [recentEvents, setRecentEvents] = useState([]);
-  const [activities, setActivities] = useState([
-    { id: 1, content: 'Sponsor added: Vercel joined Silver Tier placements', timestamp: '10m ago' },
-    { id: 2, content: 'User check-in: guest.user@college.edu checked in at Era of Infinite Software', timestamp: '40m ago' },
-    { id: 3, content: 'Waitlist promotion: karthik@gdgdemo.org promoted to confirmed seat', timestamp: '2h ago' },
-    { id: 4, content: 'Campaign sent: Dev Summit Newsletter dispatched to all members', timestamp: '1d ago' }
-  ]);
+  const [recentRegistrations, setRecentRegistrations] = useState([]);
+  const [activities, setActivities] = useState([]);
 
   const fetchOverviewData = async () => {
     setLoading(true);
@@ -43,11 +39,11 @@ export default function DashboardOverview() {
     const { status, data } = await apiRequest('/api/v1/analytics/overview/', 'GET', null, true);
     if (status === 200) {
       setCounts({
-        events: data.total_events || 3,
-        upcoming: Math.max(0, (data.total_events || 3) - 1),
-        registrations: data.total_registrations || 309,
-        attendance: data.engagement_metrics?.attendance_rate || 85.5,
-        members: data.total_members || 393
+        events: data.total_events || 0,
+        upcoming: Math.max(0, (data.total_events || 0) - 1),
+        registrations: data.total_registrations || 0,
+        attendance: data.engagement_metrics?.attendance_rate || 0,
+        members: data.total_members || 0
       });
     }
 
@@ -55,6 +51,18 @@ export default function DashboardOverview() {
     const eventRes = await apiRequest('/api/v1/events/', 'GET', null, true);
     if (eventRes.status === 200) {
       setRecentEvents(eventRes.data.slice(0, 3));
+    }
+
+    // Fetch recent registrations
+    const regRes = await apiRequest('/api/v1/events/registrations/', 'GET', null, true);
+    if (regRes.status === 200) {
+      setRecentRegistrations(regRes.data.slice(0, 3));
+    }
+
+    // Fetch recent activities
+    const actRes = await apiRequest('/api/v1/analytics/activity/', 'GET', null, true);
+    if (actRes.status === 200) {
+      setActivities(actRes.data);
     }
     setLoading(false);
   };
@@ -117,18 +125,22 @@ export default function DashboardOverview() {
           {/* Recent Registrations log block */}
           <DashboardCard title="Recent Registrations">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ padding: '8px 12px', border: '1px solid var(--gdg-border)', borderRadius: '6px', fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
-                <span>karthik@gdgdemo.org</span>
-                <span style={{ color: 'var(--gdg-success)', fontWeight: 'bold' }}>Confirmed</span>
-              </div>
-              <div style={{ padding: '8px 12px', border: '1px solid var(--gdg-border)', borderRadius: '6px', fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
-                <span>guest.user@college.edu</span>
-                <span style={{ color: 'var(--gdg-blue)', fontWeight: 'bold' }}>Checked In</span>
-              </div>
-              <div style={{ padding: '8px 12px', border: '1px solid var(--gdg-border)', borderRadius: '6px', fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
-                <span>lead@kumaraguru.gdg.dev</span>
-                <span style={{ color: 'var(--gdg-success)', fontWeight: 'bold' }}>Confirmed</span>
-              </div>
+              {recentRegistrations.length === 0 ? (
+                <p style={{ fontStyle: 'italic', color: 'var(--gdg-text-secondary)', fontSize: '13px' }}>No registrations yet.</p>
+              ) : (
+                recentRegistrations.map(r => (
+                  <div key={r.id} style={{ padding: '8px 12px', border: '1px solid var(--gdg-border)', borderRadius: '6px', fontSize: '13px', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>{r.user.email}</span>
+                    <span style={{ 
+                      color: r.status === 'checked_in' ? 'var(--gdg-blue)' : 'var(--gdg-success)', 
+                      fontWeight: 'bold',
+                      textTransform: 'capitalize'
+                    }}>
+                      {r.status === 'checked_in' ? 'Checked In' : r.status}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
           </DashboardCard>
         </div>

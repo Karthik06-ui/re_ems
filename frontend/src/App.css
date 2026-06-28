@@ -496,7 +496,8 @@
 .gdg-dashboard-shell {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background-color: var(--gdg-content-bg);
   color: var(--gdg-text-primary);
   font-family: var(--gdg-font), system-ui, -apple-system, sans-serif;
@@ -533,7 +534,9 @@
 .gdg-dashboard-body {
   display: flex;
   flex: 1;
+  min-height: 0;
   position: relative;
+  overflow: hidden;
 }
 
 .gdg-sidebar {
@@ -544,11 +547,25 @@
   flex-direction: column;
   align-items: center;
   padding: 16px 0;
-  position: sticky;
-  top: 0;
-  height: calc(100vh - 66px);
-  justify-content: space-between;
+  height: 100%;
   box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Thin clean scrollbar for sidebar */
+.gdg-sidebar::-webkit-scrollbar {
+  width: 4px;
+}
+.gdg-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.gdg-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+}
+.gdg-sidebar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.24);
 }
 
 .gdg-logo-section {
@@ -610,7 +627,7 @@
   width: 100%;
   align-items: center;
   margin-top: 24px;
-  flex: 1;
+  flex-shrink: 0;
 }
 
 .gdg-nav-item {
@@ -624,6 +641,7 @@
   text-decoration: none;
   font-size: 10px;
   border-left: 3px solid transparent;
+  border-right: 3px solid transparent;
   box-sizing: border-box;
   transition: all 0.2s ease;
 }
@@ -664,7 +682,9 @@
 
 .gdg-sidebar-bottom {
   margin-top: auto;
+  padding-top: 16px;
   padding-bottom: 8px;
+  flex-shrink: 0;
 }
 
 .gdg-main-content {

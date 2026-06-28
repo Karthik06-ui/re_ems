@@ -15,6 +15,8 @@ export default function SettingsWorkspace() {
   const navigate = useNavigate();
   const { apiRequest } = useAuth();
 
+  const [activeChapter, setActiveChapter] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   // Overview Tab Form States
   const [title, setTitle] = useState('');
@@ -36,6 +38,22 @@ export default function SettingsWorkspace() {
 
   const [saving, setSaving] = useState(false);
 
+  const fetchChapterSettings = async () => {
+    setLoading(true);
+    const { status, data } = await apiRequest('/api/v1/chapters/gdg-workspace/', 'GET', null, true);
+    if (status === 200) {
+      setActiveChapter(data);
+      setTitle(data.name || '');
+      setLocationStr(data.location || '');
+      setDescription(data.description || '');
+      setLogoUrl(data.logo || 'https://www.gstatic.com/devrel-devsite/prod/v559d28dbd68e4de88d1d8ef35b54203a7a97c27632669e46a782e46e8557ee7a/developers/images/touchicon-180.png');
+      setBannerUrl(data.banner || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&auto=format&fit=crop&q=80');
+      setThemeColor(data.theme_color || '#1A73E8');
+      setGaTrackingId(data.ga_tracking_id || 'G-XXXXXXXXXX');
+    }
+    setLoading(false);
+  };
+
   const fetchTeamMembers = async () => {
     const { status, data } = await apiRequest('/api/v1/auth/users/', 'GET', null, true);
     if (status === 200) {
@@ -51,14 +69,8 @@ export default function SettingsWorkspace() {
   };
 
   useEffect(() => {
-    if (activeChapter) {
-      setTitle(activeChapter.name || '');
-      setLocationStr(activeChapter.location || '');
-      setDescription(activeChapter.description || '');
-      setLogoUrl(activeChapter.logo || 'https://www.gstatic.com/devrel-devsite/prod/v559d28dbd68e4de88d1d8ef35b54203a7a97c27632669e46a782e46e8557ee7a/developers/images/touchicon-180.png');
-      setBannerUrl(activeChapter.banner || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&auto=format&fit=crop&q=80');
-    }
-  }, [activeChapter]);
+    fetchChapterSettings();
+  }, []);
 
   useEffect(() => {
     if (tab === 'team') {
@@ -67,24 +79,44 @@ export default function SettingsWorkspace() {
   }, [tab]);
 
   const handleSaveSettings = async () => {
-    if (!activeChapter) return;
     setSaving(true);
 
-    const { status, data } = await apiRequest(`/api/v1/chapters/${activeChapter.slug}/`, 'PATCH', {
+    const { status, data } = await apiRequest(`/api/v1/chapters/gdg-workspace/`, 'PATCH', {
       name: title,
       location: locationStr,
       description: description,
       logo: logoUrl,
-      banner: bannerUrl
+      banner: bannerUrl,
+      theme_color: themeColor,
+      ga_tracking_id: gaTrackingId
     }, true);
 
     if (status === 200) {
       alert('Chapter configurations successfully saved!');
-      refreshChapters();
+      setActiveChapter(data);
     } else {
       alert(data.detail || 'Failed to save configurations.');
     }
     setSaving(false);
+  };
+
+  const togglePermission = async (memberId, permissionType) => {
+    const member = teamMembers.find(m => m.id === memberId);
+    if (!member) return;
+
+    const isCurrentlyPrivileged = member.role !== 'Member';
+    const newRole = isCurrentlyPrivileged ? 'member' : 'organizer';
+
+    const { status, data } = await apiRequest('/api/v1/auth/users/', 'POST', {
+      user_email: member.email,
+      role: newRole
+    }, true);
+
+    if (status === 200 || status === 201) {
+      fetchTeamMembers();
+    } else {
+      alert(data?.detail || 'Failed to update member permission.');
+    }
   };
 
   const handleAddTeamMember = async (e) => {
@@ -118,7 +150,17 @@ export default function SettingsWorkspace() {
     }
   };
 
-  const settingsTabs = ['team'];
+  const settingsTabs = ['overview', 'branding', 'team', 'tracking'];
+
+  if (loading) {
+    return (
+      <DashboardShell sectionTitle="Settings">
+        <div style={{ display: 'flex', justifyContent: 'center', marginTop: '40px', padding: '40px' }}>
+          <div className="gdg-spinner" style={{ width: '40px', height: '40px' }}></div>
+        </div>
+      </DashboardShell>
+    );
+  }
 
   return (
     <DashboardShell sectionTitle="Settings">

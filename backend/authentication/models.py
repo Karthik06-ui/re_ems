@@ -61,10 +61,18 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_staff = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     
+    roll_number = models.CharField(max_length=50, blank=True, null=True)
+    department = models.CharField(max_length=100, blank=True, null=True)
+    phone_number = models.CharField(max_length=20, blank=True, null=True)
+    
     objects = UserManager()
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['name']
+
+    @property
+    def is_profile_completed(self):
+        return bool(self.name and self.roll_number and self.department and self.phone_number)
 
     def __str__(self):
         return f"{self.email} ({self.role})"

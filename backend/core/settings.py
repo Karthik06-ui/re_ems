@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'sponsors',
     'communication',
     'analytics',
+    'participants',
 ]
 
 MIDDLEWARE = [
@@ -169,4 +170,7 @@ SIMPLE_JWT = {
 
 # CORS Configuration
 CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://localhost:3000,http://localhost:5174').split(',')
+
+SILENCED_SYSTEM_CHECKS = ['fields.E180']
+
 

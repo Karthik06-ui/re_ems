@@ -25,5 +25,7 @@ urlpatterns = [
     path('api/v1/campaigns/', include('communication.urls')),
     path('api/v1/analytics/', include('analytics.urls')),
     path('api/v1/sponsors/', include('sponsors.urls')),
+    path('api/v1/portal/', include('participants.urls')),
+    path('api/v1/chapters/', include('events.chapter_urls')),
 ]
 

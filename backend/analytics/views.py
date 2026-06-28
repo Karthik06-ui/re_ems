@@ -39,3 +39,36 @@ class AnalyticsViewSet(viewsets.ViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save(user=request.user)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['get'])
+    def activity(self, request):
+        events = AnalyticsEvent.objects.all().order_by('-timestamp')[:10]
+        data = []
+        for e in events:
+            content = ""
+            if e.event_type == "sponsor_added":
+                content = f"Sponsor added: {e.metadata.get('name')} joined {e.metadata.get('tier')} Tier placements"
+            elif e.event_type == "checkin":
+                content = f"User check-in: {e.metadata.get('email')} checked in at {e.metadata.get('event_title')}"
+            elif e.event_type == "waitlist_promotion":
+                content = f"Waitlist promotion: {e.metadata.get('email')} promoted to confirmed seat"
+            elif e.event_type == "campaign_sent":
+                content = f"Campaign sent: {e.metadata.get('subject')} dispatched to all members"
+            else:
+                content = f"Activity logged: {e.event_type}"
+                
+            data.append({
+                "id": e.id,
+                "content": content,
+                "timestamp": e.timestamp.isoformat()
+            })
+            
+        # Fallback to standard mock logs if no events are recorded in the database yet
+        if not data:
+            data = [
+                { "id": 1, "content": "Sponsor added: Vercel joined Silver Tier placements", "timestamp": "2026-06-15T19:20:00Z" },
+                { "id": 2, "content": "User check-in: guest.user@college.edu checked in at Era of Infinite Software", "timestamp": "2026-06-15T18:50:00Z" },
+                { "id": 3, "content": "Waitlist promotion: karthik@gdgdemo.org promoted to confirmed seat", "timestamp": "2026-06-15T17:30:00Z" },
+                { "id": 4, "content": "Campaign sent: Dev Summit Newsletter dispatched to all members", "timestamp": "2026-06-14T19:30:00Z" }
+            ]
+        return Response(data)

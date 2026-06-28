@@ -11,9 +11,18 @@ User = get_user_model()
 
 class EventRegistrationTests(APITestCase):
     def setUp(self):
-        self.user_a = User.objects.create_user(email='user_a@test.com', name='User A', password='password123')
-        self.user_b = User.objects.create_user(email='user_b@test.com', name='User B', password='password123')
-        self.user_c = User.objects.create_user(email='user_c@test.com', name='User C', password='password123')
+        self.user_a = User.objects.create_user(
+            email='user_a@test.com', name='User A', password='password123',
+            roll_number='A101', department='CSE', phone_number='1234567890'
+        )
+        self.user_b = User.objects.create_user(
+            email='user_b@test.com', name='User B', password='password123',
+            roll_number='B102', department='ECE', phone_number='1234567891'
+        )
+        self.user_c = User.objects.create_user(
+            email='user_c@test.com', name='User C', password='password123',
+            roll_number='C103', department='MECH', phone_number='1234567892'
+        )
         
         # Create an event with capacity = 2
         self.event = Event.objects.create(
@@ -80,3 +89,35 @@ class EventRegistrationTests(APITestCase):
 
         # Verify User C deleted from waitlist
         self.assertEqual(Waitlist.objects.filter(event=self.event).count(), 0)
+
+
+class ChapterSettingTests(APITestCase):
+    def setUp(self):
+        self.admin_user = User.objects.create_user(
+            email='admin@test.com', name='Admin User', password='password123',
+            role=User.Role.PLATFORM_ADMIN, roll_number='ADM01', department='ADMIN', phone_number='1111111111'
+        )
+        self.member_user = User.objects.create_user(
+            email='member@test.com', name='Member User', password='password123',
+            role=User.Role.MEMBER, roll_number='MEM01', department='CSE', phone_number='2222222222'
+        )
+        self.url = reverse('chapter-detail', kwargs={'slug': 'gdg-workspace'})
+
+    def test_get_chapter_settings_unauthenticated(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['slug'], 'gdg-workspace')
+        self.assertEqual(response.data['name'], 'GDG Workspace')
+
+    def test_patch_chapter_settings_unauthorized(self):
+        self.client.force_authenticate(user=self.member_user)
+        response = self.client.patch(self.url, {'name': 'Updated Name'})
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_patch_chapter_settings_authorized(self):
+        self.client.force_authenticate(user=self.admin_user)
+        response = self.client.patch(self.url, {'name': 'Updated GDG Chapter', 'location': 'New Coimbatore'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['name'], 'Updated GDG Chapter')
+        self.assertEqual(response.data['location'], 'New Coimbatore')
+

@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Event, Registration, Waitlist, Speaker, Session, SurveyQuestion, Announcement
+from .models import Event, Registration, Waitlist, Speaker, Session, SurveyQuestion, Announcement, ChapterSetting
 from authentication.serializers import UserSerializer
 
 User = get_user_model()
@@ -82,10 +82,11 @@ class EventSerializer(serializers.ModelSerializer):
 
 class RegistrationSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
+    event_title = serializers.CharField(source='event.title', read_only=True)
 
     class Meta:
         model = Registration
-        fields = ('id', 'event', 'user', 'status', 'ticket_type', 'registered_at', 'checked_in_at')
+        fields = ('id', 'event', 'event_title', 'user', 'status', 'ticket_type', 'registered_at', 'checked_in_at')
         read_only_fields = ('id', 'user', 'registered_at', 'checked_in_at')
 
 class WaitlistSerializer(serializers.ModelSerializer):
@@ -95,3 +96,10 @@ class WaitlistSerializer(serializers.ModelSerializer):
         model = Waitlist
         fields = ('id', 'event', 'user', 'position', 'created_at')
         read_only_fields = ('id', 'user', 'position', 'created_at')
+
+
+class ChapterSettingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ChapterSetting
+        fields = ('slug', 'name', 'location', 'description', 'logo', 'banner', 'theme_color', 'ga_tracking_id')
+

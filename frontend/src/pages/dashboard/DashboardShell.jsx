@@ -13,7 +13,7 @@ import {
   Settings, 
   Bell
 } from 'lucide-react';
-import { NotificationDrawer } from '../../components/DashboardComponents';
+// import { NotificationDrawer } from '../../components/DashboardComponents';
 
 export default function DashboardShell({ children, sectionTitle }) {
   const { user, logout } = useAuth();
@@ -21,13 +21,13 @@ export default function DashboardShell({ children, sectionTitle }) {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [notificationOpen, setNotificationOpen] = useState(false);
-  const [notifications, setNotifications] = useState([
-    { id: 1, type: 'Event Published', message: 'Era of Infinite Software event is now live!', time: '10m ago', unread: true },
-    { id: 2, type: 'Registration Milestone', message: 'React Summit reached 80% capacity!', time: '1h ago', unread: true },
-    { id: 3, type: 'Waitlist Promotion', message: 'FIFO Promotion: karthik@gdgdemo.org promoted to confirmed!', time: '2h ago', unread: false },
-    { id: 4, type: 'Sponsor Added', message: 'JetBrains added to Silver Tier placements.', time: '1d ago', unread: false }
-  ]);
+  // const [notificationOpen, setNotificationOpen] = useState(false);
+  // const [notifications, setNotifications] = useState([
+  //   { id: 1, type: 'Event Published', message: 'Era of Infinite Software event is now live!', time: '10m ago', unread: true },
+  //   { id: 2, type: 'Registration Milestone', message: 'React Summit reached 80% capacity!', time: '1h ago', unread: true },
+  //   { id: 3, type: 'Waitlist Promotion', message: 'FIFO Promotion: karthik@gdgdemo.org promoted to confirmed!', time: '2h ago', unread: false },
+  //   { id: 4, type: 'Sponsor Added', message: 'JetBrains added to Silver Tier placements.', time: '1d ago', unread: false }
+  // ]);
 
   // Menu structure matching the official specification
   const navItems = [
@@ -49,11 +49,11 @@ export default function DashboardShell({ children, sectionTitle }) {
     return location.pathname.startsWith(itemPath.split('/').slice(0, 3).join('/'));
   };
 
-  const handleMarkAsRead = (id) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
-  };
-
-  const unreadCount = notifications.filter(n => n.unread).length;
+  // const handleMarkAsRead = (id) => {
+  //   setNotifications(prev => prev.map(n => n.id === id ? { ...n, unread: false } : n));
+  // };
+  // 
+  // const unreadCount = notifications.filter(n => n.unread).length;
 
   // 1. ROLE-BASED ACCESS CONTROL GUARD
   if (!user) {
@@ -69,7 +69,21 @@ export default function DashboardShell({ children, sectionTitle }) {
       
       {/* SUB-TEXT BANNER */}
       <div className="gdg-sub-banner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span>Not finding what you need? <a href="#legacy" className="blue-link underline">Switch back to the legacy dashboard</a></span>
+        <button 
+          onClick={() => navigate('/portal')} 
+          style={{ 
+            fontSize: '12px', 
+            background: 'none', 
+            border: 'none', 
+            color: 'var(--gdg-blue)',
+            cursor: 'pointer',
+            fontWeight: 600,
+            padding: 0,
+            textDecoration: 'underline'
+          }}
+        >
+          Switch to Participant View
+        </button>
         <span style={{ fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>Role: <strong style={{ textTransform: 'uppercase' }}>{user.role}</strong></span>
       </div>
 
@@ -92,6 +106,8 @@ export default function DashboardShell({ children, sectionTitle }) {
               </span>
             </div>
           </div>
+
+
 
           {/* Navigation vertical stack */}
           <nav className="gdg-nav-stack">
@@ -143,7 +159,7 @@ export default function DashboardShell({ children, sectionTitle }) {
             <div className="gdg-header-actions">
 
 
-              {/* Notification Bell */}
+              {/* Notification Bell
               <div 
                 className="bell-container cursor-pointer" 
                 title="Chapter Alerts"
@@ -152,6 +168,7 @@ export default function DashboardShell({ children, sectionTitle }) {
                 <Bell size={20} className="text-gray-600 hover:text-blue-600" />
                 {unreadCount > 0 && <span className="bell-badge"></span>}
               </div>
+              */}
             </div>
           </header>
 
@@ -161,13 +178,14 @@ export default function DashboardShell({ children, sectionTitle }) {
         </main>
       </div>
 
-      {/* GLOBAL NOTIFICATION CENTER DRAWER */}
+      {/* GLOBAL NOTIFICATION CENTER DRAWER
       <NotificationDrawer 
         isOpen={notificationOpen}
         onClose={() => setNotificationOpen(false)}
         notifications={notifications}
         onMarkAsRead={handleMarkAsRead}
       />
+      */}
 
     </div>
   );
