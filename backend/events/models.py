@@ -106,10 +106,29 @@ class SurveyQuestion(models.Model):
         return self.text
 
 class Announcement(models.Model):
+    class AnnouncementStatus(models.TextChoices):
+        DRAFT = 'draft', 'Draft'
+        SENDING = 'sending', 'Sending'
+        SENT = 'sent', 'Sent'
+        FAILED = 'failed', 'Failed'
+
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='announcements')
     subject = models.CharField(max_length=255)
     body = models.TextField()
     recipients = models.CharField(max_length=255, default='Confirmed Attendees')
+    status = models.CharField(
+        max_length=50,
+        choices=AnnouncementStatus.choices,
+        default=AnnouncementStatus.DRAFT
+    )
+    sent_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sent_announcements'
+    )
+    sent_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

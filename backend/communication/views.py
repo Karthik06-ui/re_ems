@@ -7,6 +7,7 @@ from .models import EmailCampaign
 from .serializers import EmailCampaignSerializer
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
+from .services import EmailService
 
 User = get_user_model()
 
@@ -15,44 +16,28 @@ class EmailCampaignViewSet(viewsets.ModelViewSet):
     serializer_class = EmailCampaignSerializer
     permission_classes = [IsAuthenticated]
 
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
     @action(detail=True, methods=['post'])
     def send(self, request, pk=None):
         campaign = self.get_object()
-        if campaign.status == EmailCampaign.CampaignStatus.SENT:
-            return Response(
-                {"detail": "This campaign has already been sent."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-            
-        campaign.status = EmailCampaign.CampaignStatus.SENDING
-        campaign.save()
-
-        # Resolve audience list
-        recipients = []
-        if campaign.audience == 'all':
-            # Get all users (since chapters are removed)
-            recipients = list(User.objects.filter(is_active=True).values_list('email', flat=True))
-
-        # Simulate batch email transmission (in a real app, this would be a Celery task)
-        # We also trigger standard django send_mail to facilitate local testing
         try:
-            if recipients:
-                send_mail(
-                    subject=campaign.subject,
-                    message=campaign.body,
-                    from_email='noreply@communityplatform.com',
-                    recipient_list=recipients,
-                    fail_silently=True
-                )
-        except Exception:
-            pass
+            EmailService.send_campaign_emails(campaign, request.user)
+            serializer = self.get_serializer(campaign)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"detail": f"Failed to send campaign emails: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-        campaign.status = EmailCampaign.CampaignStatus.SENT
-        campaign.sent_at = timezone.now()
-        campaign.save()
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        campaign = self.get_object()
+        if campaign.status in [EmailCampaign.CampaignStatus.DRAFT, EmailCampaign.CampaignStatus.SCHEDULED]:
+            campaign.status = EmailCampaign.CampaignStatus.CANCELLED
+            campaign.save()
+            serializer = self.get_serializer(campaign)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response({"detail": "Only draft or scheduled outreach can be cancelled."}, status=status.HTTP_400_BAD_REQUEST)
 
-        from analytics.utils import log_event
-        log_event("campaign_sent", campaign.id, request.user, {"subject": campaign.subject})
-
-        serializer = self.get_serializer(campaign)
-        return Response(serializer.data, status=status.HTTP_200_OK)

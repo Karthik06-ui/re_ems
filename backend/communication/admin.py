@@ -3,6 +3,6 @@ from .models import EmailCampaign
 
 @admin.register(EmailCampaign)
 class EmailCampaignAdmin(admin.ModelAdmin):
-    list_display = ('subject', 'audience', 'status', 'scheduled_at', 'sent_at', 'created_at')
+    list_display = ('subject', 'audience', 'status', 'created_by', 'actual_recipient_count', 'scheduled_at', 'sent_at', 'created_at')
     list_filter = ('status', 'audience')
     search_fields = ('subject', 'body')

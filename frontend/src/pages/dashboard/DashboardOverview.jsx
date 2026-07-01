@@ -73,7 +73,7 @@ export default function DashboardOverview() {
 
   const quickActions = [
     { label: 'Create Event', icon: Plus, onClick: () => navigate('/dashboard/events') },
-    { label: 'Create Campaign', icon: Send, onClick: () => navigate('/dashboard/campaigns') },
+    { label: 'Create Outreach', icon: Send, onClick: () => navigate('/dashboard/outreach') },
     { label: 'Add Sponsor', icon: Award, onClick: () => navigate('/dashboard/sponsors') },
     { label: 'Invite Member', icon: Users, onClick: () => navigate('/dashboard/members') },
   ];

@@ -11,8 +11,16 @@ class AnalyticsEvent(models.Model):
         blank=True,
         related_name='analytics_events'
     )
-    metadata = models.JSONField(default=dict, blank=True)
+    metadata = models.TextField(default='{}', blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def metadata_dict(self):
+        import json
+        try:
+            return json.loads(self.metadata or '{}')
+        except Exception:
+            return {}
 
     def __str__(self):
         return f"{self.event_type} at {self.timestamp}"

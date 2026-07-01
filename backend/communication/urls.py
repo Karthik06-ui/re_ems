@@ -3,7 +3,7 @@ from rest_framework.routers import SimpleRouter
 from .views import EmailCampaignViewSet
 
 router = SimpleRouter()
-router.register('', EmailCampaignViewSet, basename='campaign')
+router.register('', EmailCampaignViewSet, basename='outreach')
 
 urlpatterns = [
     path('', include(router.urls)),

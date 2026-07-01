@@ -52,8 +52,8 @@ class AnalyticsViewSet(viewsets.ViewSet):
                 content = f"User check-in: {e.metadata.get('email')} checked in at {e.metadata.get('event_title')}"
             elif e.event_type == "waitlist_promotion":
                 content = f"Waitlist promotion: {e.metadata.get('email')} promoted to confirmed seat"
-            elif e.event_type == "campaign_sent":
-                content = f"Campaign sent: {e.metadata.get('subject')} dispatched to all members"
+            elif e.event_type == "outreach_sent":
+                content = f"Outreach sent: {e.metadata.get('subject')} dispatched to {e.metadata.get('recipient_count', 0)} members"
             else:
                 content = f"Activity logged: {e.event_type}"
                 
@@ -69,6 +69,6 @@ class AnalyticsViewSet(viewsets.ViewSet):
                 { "id": 1, "content": "Sponsor added: Vercel joined Silver Tier placements", "timestamp": "2026-06-15T19:20:00Z" },
                 { "id": 2, "content": "User check-in: guest.user@college.edu checked in at Era of Infinite Software", "timestamp": "2026-06-15T18:50:00Z" },
                 { "id": 3, "content": "Waitlist promotion: karthik@gdgdemo.org promoted to confirmed seat", "timestamp": "2026-06-15T17:30:00Z" },
-                { "id": 4, "content": "Campaign sent: Dev Summit Newsletter dispatched to all members", "timestamp": "2026-06-14T19:30:00Z" }
+                { "id": 4, "content": "Outreach sent: Dev Summit Newsletter dispatched to all members", "timestamp": "2026-06-14T19:30:00Z" }
             ]
         return Response(data)

@@ -9,7 +9,7 @@ import EventList from './pages/dashboard/EventList';
 import EventDetailWorkspace from './pages/dashboard/EventDetailWorkspace';
 import RegistrationsDashboard from './pages/dashboard/RegistrationsDashboard';
 import MembersDashboard from './pages/dashboard/MembersDashboard';
-import CampaignsDashboard from './pages/dashboard/CampaignsDashboard';
+import OutreachDashboard from './pages/dashboard/OutreachDashboard';
 import SponsorsDashboard from './pages/dashboard/SponsorsDashboard';
 import SettingsWorkspace from './pages/dashboard/SettingsWorkspace';
 
@@ -76,7 +76,7 @@ function MainLayout() {
           <Route path="/dashboard/events/:id/:tab" element={<EventDetailWorkspace />} />
           <Route path="/dashboard/registrations" element={<RegistrationsDashboard />} />
           <Route path="/dashboard/members" element={<MembersDashboard />} />
-          <Route path="/dashboard/campaigns" element={<CampaignsDashboard />} />
+           <Route path="/dashboard/outreach" element={<OutreachDashboard />} />
           <Route path="/dashboard/sponsors" element={<SponsorsDashboard />} />
           <Route path="/dashboard/settings" element={<Navigate to="/dashboard/settings/overview" replace />} />
           <Route path="/dashboard/settings/:tab" element={<SettingsWorkspace />} />

@@ -13,6 +13,8 @@ from .serializers import (
     SessionSerializer, SurveyQuestionSerializer, AnnouncementSerializer, ChapterSettingSerializer
 )
 from authentication.models import User
+from communication.models import EmailCampaign
+from communication.services import EmailService
 
 class EventViewSet(viewsets.ModelViewSet):
     queryset = Event.objects.filter(deleted_at__isnull=True)
@@ -34,6 +36,78 @@ class EventViewSet(viewsets.ModelViewSet):
     def perform_destroy(self, instance):
         instance.deleted_at = timezone.now()
         instance.save()
+
+    def perform_create(self, serializer):
+        event = serializer.save()
+        self.handle_event_draft_logic(event)
+
+    def perform_update(self, serializer):
+        old_instance = self.get_object()
+        old_title = old_instance.title
+        old_venue = old_instance.venue
+        old_start = old_instance.start_time
+        old_end = old_instance.end_time
+        old_status = old_instance.status
+
+        event = serializer.save()
+
+        details_changed = (
+            event.title != old_title or 
+            event.venue != old_venue or 
+            event.start_time != old_start or 
+            event.end_time != old_end
+        )
+        status_changed = event.status != old_status
+
+        self.handle_event_draft_logic(event, details_changed=details_changed, status_changed=status_changed)
+
+    def handle_event_draft_logic(self, event, details_changed=False, status_changed=False):
+        # 1. Global Campaign logic (on event publication/registration open status)
+        if event.status in [Event.EventStatus.PUBLISHED, Event.EventStatus.REGISTRATION_OPEN]:
+            campaign_subject = f"New Event: {event.title}"
+            campaign_body = f"We are excited to invite you to our new event: {event.title}.\n\nVenue: {event.venue}\nStart Time: {event.start_time}\nDescription: {event.description}"
+            
+            campaign_draft = EmailCampaign.objects.filter(
+                event=event,
+                status=EmailCampaign.CampaignStatus.DRAFT
+            ).first()
+
+            if campaign_draft:
+                campaign_draft.subject = campaign_subject
+                campaign_draft.body = campaign_body
+                campaign_draft.save()
+            else:
+                EmailCampaign.objects.create(
+                    event=event,
+                    subject=campaign_subject,
+                    body=campaign_body,
+                    audience='previous_participants',
+                    status=EmailCampaign.CampaignStatus.DRAFT
+                )
+
+        # 2. Announcement logic (on detail updates: venue, time, title modifications)
+        if details_changed:
+            announcement_subject = f"Update for Event: {event.title}"
+            announcement_body = f"Important updates for {event.title}.\n\nVenue: {event.venue}\nStart Time: {event.start_time}"
+
+            announcement_draft = Announcement.objects.filter(
+                event=event,
+                status=Announcement.AnnouncementStatus.DRAFT
+            ).first()
+
+            if announcement_draft:
+                announcement_draft.subject = announcement_subject
+                announcement_draft.body = announcement_body
+                announcement_draft.save()
+            else:
+                Announcement.objects.create(
+                    event=event,
+                    subject=announcement_subject,
+                    body=announcement_body,
+                    recipients='Confirmed Attendees',
+                    status=Announcement.AnnouncementStatus.DRAFT
+                )
+
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     @transaction.atomic
@@ -277,6 +351,18 @@ class AnnouncementViewSet(viewsets.ModelViewSet):
     queryset = Announcement.objects.all()
     serializer_class = AnnouncementSerializer
     permission_classes = [IsAuthenticated]
+
+    @action(detail=True, methods=['post'])
+    def send(self, request, pk=None):
+        announcement = self.get_object()
+        try:
+            EmailService.send_announcement_emails(announcement, request.user)
+            serializer = self.get_serializer(announcement)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"detail": f"Failed to send announcement emails: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ChapterSettingDetailView(APIView):

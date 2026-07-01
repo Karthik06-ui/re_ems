@@ -36,7 +36,7 @@ export default function DashboardShell({ children, sectionTitle }) {
     { label: 'Events', path: '/dashboard/events', icon: Calendar },
     { label: 'Registrations', path: '/dashboard/registrations', icon: CheckSquare },
     { label: 'Members', path: '/dashboard/members', icon: Users },
-    { label: 'Campaigns', path: '/dashboard/campaigns', icon: Send },
+    { label: 'Outreach', path: '/dashboard/outreach', icon: Send },
     { label: 'Sponsors', path: '/dashboard/sponsors', icon: Award },
     { label: 'Settings', path: '/dashboard/settings/overview', icon: Settings },
   ];

@@ -21,9 +21,26 @@ class SurveyQuestionSerializer(serializers.ModelSerializer):
         fields = ('id', 'event', 'text', 'type')
 
 class AnnouncementSerializer(serializers.ModelSerializer):
+    recipient_count = serializers.SerializerMethodField()
+    sent_by = UserSerializer(read_only=True)
+
     class Meta:
         model = Announcement
-        fields = ('id', 'event', 'subject', 'body', 'recipients', 'created_at')
+        fields = ('id', 'event', 'subject', 'body', 'recipients', 'status', 'sent_by', 'sent_at', 'recipient_count', 'created_at')
+        read_only_fields = ('id', 'status', 'sent_by', 'sent_at', 'created_at')
+
+    def get_recipient_count(self, obj):
+        if not obj.event:
+            return 0
+        if obj.recipients == 'Confirmed Attendees' or obj.recipients == 'Confirmed':
+            return obj.event.registrations.filter(
+                status__in=[Registration.Status.CONFIRMED, Registration.Status.CHECKED_IN]
+            ).count()
+        elif obj.recipients == 'Waitlist' or obj.recipients == 'Waitlisted Users':
+            return obj.event.waitlists.count()
+        return obj.event.registrations.filter(
+            status__in=[Registration.Status.CONFIRMED, Registration.Status.CHECKED_IN]
+        ).count()
 
 class EventSerializer(serializers.ModelSerializer):
     speakers = SpeakerSerializer(many=True, read_only=True)

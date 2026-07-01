@@ -64,7 +64,16 @@ class User(AbstractBaseUser, PermissionsMixin):
     roll_number = models.CharField(max_length=50, blank=True, null=True)
     department = models.CharField(max_length=100, blank=True, null=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
+    notification_preferences = models.TextField(default='{"outreach": true, "announcements": true, "reminders": true}', blank=True)
     
+    @property
+    def notification_preferences_dict(self):
+        import json
+        try:
+            return json.loads(self.notification_preferences or '{}')
+        except Exception:
+            return {"outreach": True, "announcements": True, "reminders": True}
+            
     objects = UserManager()
 
     USERNAME_FIELD = 'email'

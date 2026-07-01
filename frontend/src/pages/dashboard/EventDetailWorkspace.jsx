@@ -10,6 +10,7 @@ import {
   ExternalLink, Copy
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import OutreachPreviewModal from '../../components/OutreachPreviewModal';
 import { 
   RegistrationTable, 
   WaitlistTable, 
@@ -82,12 +83,31 @@ export default function EventDetailWorkspace() {
   const [annSubject, setAnnSubject] = useState('');
   const [annBody, setAnnBody] = useState('');
 
+  // Announcement preview modal states
+  const [selectedAnn, setSelectedAnn] = useState(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [sending, setSending] = useState(false);
+
   // Event sponsors states
   const [eventSponsors, setEventSponsors] = useState([]);
   const [allSponsors, setAllSponsors] = useState([]);
   const [selectedSponsorId, setSelectedSponsorId] = useState('');
   const [sponsorTierOverride, setSponsorTierOverride] = useState('gold');
   const [addingSponsor, setAddingSponsor] = useState(false);
+
+  const handleConfirmSendAnnouncement = async () => {
+    if (!selectedAnn) return;
+    setSending(true);
+    const { status, data } = await apiRequest(`/api/v1/events/announcements/${selectedAnn.id}/send/`, 'POST', {}, true);
+    setSending(false);
+    setPreviewOpen(false);
+    if (status === 200) {
+      alert('Announcement successfully dispatched!');
+      fetchWorkspaceDetails();
+    } else {
+      alert('Failed to send announcement: ' + (data?.detail || JSON.stringify(data)));
+    }
+  };
 
   const fetchWorkspaceDetails = async () => {
     setLoading(true);
@@ -110,6 +130,8 @@ export default function EventDetailWorkspace() {
         subject: ann.subject,
         body: ann.body,
         recipients: ann.recipients,
+        status: ann.status,
+        recipient_count: ann.recipient_count,
         date: new Date(ann.created_at).toLocaleDateString([], { year: 'numeric', month: 'short', day: '2-digit' })
       })) : []);
 
@@ -859,46 +881,96 @@ export default function EventDetailWorkspace() {
         {/* COMMUNICATIONS TAB */}
         {tab === 'communications' && (
           <div className="gdg-grid-2-1">
-            <DashboardCard title="Event Announcement Dispatcher">
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                if (!annSubject) return;
-                const { status, data } = await apiRequest('/api/v1/events/announcements/', 'POST', {
-                  event: parseInt(id),
-                  subject: annSubject,
-                  body: annBody,
-                  recipients: 'Confirmed Attendees'
-                }, true);
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <DashboardCard title="Compose Event Announcement">
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!annSubject) return;
+                  const { status, data } = await apiRequest('/api/v1/events/announcements/', 'POST', {
+                    event: parseInt(id),
+                    subject: annSubject,
+                    body: annBody,
+                    recipients: 'Confirmed Attendees'
+                  }, true);
 
-                if (status === 201) {
-                  setAnnSubject('');
-                  setAnnBody('');
-                  alert('Announcement successfully dispatched!');
-                  fetchWorkspaceDetails();
-                } else {
-                  alert('Failed to send announcement: ' + JSON.stringify(data));
-                }
-              }} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div className="form-group">
-                  <label>Announcement Subject</label>
-                  <input type="text" value={annSubject} onChange={e => setAnnSubject(e.target.value)} required />
+                  if (status === 201) {
+                    setAnnSubject('');
+                    setAnnBody('');
+                    alert('Announcement draft saved successfully!');
+                    fetchWorkspaceDetails();
+                  } else {
+                    alert('Failed to save announcement: ' + JSON.stringify(data));
+                  }
+                }} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div className="form-group">
+                    <label>Announcement Subject</label>
+                    <input type="text" value={annSubject} onChange={e => setAnnSubject(e.target.value)} required />
+                  </div>
+                  <div className="form-group">
+                    <label>Message details</label>
+                    <textarea value={annBody} onChange={e => setAnnBody(e.target.value)} rows={3} required />
+                  </div>
+                  <button className="btn btn-primary" type="submit" style={{ alignSelf: 'flex-start' }}>
+                    <Plus size={12} />
+                    <span>Create Announcement Draft</span>
+                  </button>
+                </form>
+              </DashboardCard>
+
+              <DashboardCard title="Draft Announcements">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {announcements.filter(ann => ann.status === 'draft' || ann.status === 'failed').length === 0 ? (
+                    <p style={{ fontStyle: 'italic', color: 'var(--gdg-text-secondary)', fontSize: '13px' }}>
+                      No draft announcements.
+                    </p>
+                  ) : null}
+                  {announcements.filter(ann => ann.status === 'draft' || ann.status === 'failed').map(ann => (
+                    <div key={ann.id} style={{ padding: '12px', border: '1px solid var(--gdg-border)', borderRadius: '6px', fontSize: '12px', background: '#F8F9FA', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div>
+                        <strong style={{ display: 'block', fontSize: '13px' }}>{ann.subject}</strong>
+                        <span style={{ display: 'block', color: 'var(--gdg-text-secondary)', marginTop: '4px' }}>Audience: {ann.recipients}</span>
+                        {ann.status === 'failed' && (
+                          <span style={{ display: 'inline-block', color: 'var(--gdg-error)', fontWeight: 'bold', marginTop: '4px' }}>Status: Sending Failed</span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button 
+                          className="btn btn-success" 
+                          style={{ padding: '4px 8px', fontSize: '11px', flex: 1 }}
+                          onClick={() => {
+                            setSelectedAnn(ann);
+                            setPreviewOpen(true);
+                          }}
+                        >
+                          <Send size={11} />
+                          <span>Send Announcement</span>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="form-group">
-                  <label>Message details</label>
-                  <textarea value={annBody} onChange={e => setAnnBody(e.target.value)} rows={3} required />
-                </div>
-                <button className="btn btn-primary" type="submit" style={{ alignSelf: 'flex-start' }}>
-                  <Send size={12} />
-                  <span>Send Announcement</span>
-                </button>
-              </form>
-            </DashboardCard>
+              </DashboardCard>
+            </div>
 
             <DashboardCard title="Dispatched Log history">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {announcements.map(ann => (
+                {announcements.filter(ann => ann.status === 'sent' || ann.status === 'sending').length === 0 ? (
+                  <p style={{ fontStyle: 'italic', color: 'var(--gdg-text-secondary)', fontSize: '13px' }}>
+                    No dispatched announcements yet.
+                  </p>
+                ) : null}
+                {announcements.filter(ann => ann.status === 'sent' || ann.status === 'sending').map(ann => (
                   <div key={ann.id} style={{ padding: '10px', border: '1px solid var(--gdg-border)', borderRadius: '6px', fontSize: '12px', background: '#F8F9FA' }}>
-                    <strong style={{ display: 'block', fontSize: '13px' }}>{ann.subject}</strong>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <strong style={{ display: 'block', fontSize: '13px' }}>{ann.subject}</strong>
+                      <span style={{ 
+                        fontSize: '11px', 
+                        fontWeight: 'bold', 
+                        color: ann.status === 'sending' ? 'var(--gdg-draft)' : 'var(--gdg-success)' 
+                      }}>
+                        {ann.status === 'sending' ? 'Sending' : 'Sent'}
+                      </span>
+                    </div>
                     <span style={{ display: 'block', color: 'var(--gdg-text-secondary)', marginTop: '4px' }}>Date: {ann.date} | Recipients: {ann.recipients}</span>
                   </div>
                 ))}
@@ -976,6 +1048,16 @@ export default function EventDetailWorkspace() {
         )}
 
       </div>
+      <OutreachPreviewModal
+        isOpen={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        onConfirm={handleConfirmSendAnnouncement}
+        subject={selectedAnn?.subject || ''}
+        body={selectedAnn?.body || ''}
+        audience={selectedAnn?.recipients || ''}
+        recipientCount={selectedAnn?.recipient_count || 0}
+        isSending={sending}
+      />
     </DashboardShell>
   );
 }

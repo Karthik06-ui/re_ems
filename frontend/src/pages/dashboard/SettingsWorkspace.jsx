@@ -324,7 +324,7 @@ export default function SettingsWorkspace() {
                     <tr style={{ backgroundColor: '#F1F3F4', borderBottom: '1px solid var(--gdg-border)', fontWeight: 'bold', color: 'var(--gdg-text-secondary)' }}>
                       <th style={{ padding: '10px 16px' }}>MEMBER DETAILS</th>
                       <th style={{ padding: '10px 16px' }}>PUBLISH EVENTS</th>
-                      <th style={{ padding: '10px 16px' }}>SEND CAMPAIGNS</th>
+                      <th style={{ padding: '10px 16px' }}>SEND OUTREACH</th>
                       <th style={{ padding: '10px 16px' }}>REMOVE</th>
                     </tr>
                   </thead>

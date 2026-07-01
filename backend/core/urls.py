@@ -22,7 +22,7 @@ urlpatterns = [
     path('api/v1/auth/', include('authentication.urls')),
     path('api/v1/events/', include('events.urls')),
     path('api/v1/discussions/', include('discussions.urls')),
-    path('api/v1/campaigns/', include('communication.urls')),
+    path('api/v1/outreach/', include('communication.urls')),
     path('api/v1/analytics/', include('analytics.urls')),
     path('api/v1/sponsors/', include('sponsors.urls')),
     path('api/v1/portal/', include('participants.urls')),
