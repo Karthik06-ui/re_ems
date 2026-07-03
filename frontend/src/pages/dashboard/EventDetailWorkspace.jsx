@@ -29,7 +29,7 @@ const registrationTrends = [
 ];
 
 const registrationSourceData = [
-  { name: 'Email Campaign', count: 95 },
+  { name: 'Outreach', count: 95 },
   { name: 'Sponsor Referrals', count: 42 },
   { name: 'Slack/Discord', count: 30 },
   { name: 'Organic', count: 15 }

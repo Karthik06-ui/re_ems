@@ -18,11 +18,11 @@ export default function OutreachDashboard() {
   const [sending, setSending] = useState(false);
 
   // Form states
-  const [subject, setSubject] = useState('Google I/O Extended Coimbatore Recap');
-  const [body, setBody] = useState('We covered TensorFlow releases, Gemini updates, and web speeds metrics.');
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
   const [audience, setAudience] = useState('previous_participants');
-  const [scheduleDate, setScheduleDate] = useState('2026-06-15');
-  const [scheduleTime, setScheduleTime] = useState('18:00');
+  const [scheduleDate, setScheduleDate] = useState(new Date().toLocaleDateString('en-CA'));
+  const [scheduleTime, setScheduleTime] = useState(new Date().toTimeString().split(' ')[0].substring(0, 5));
 
   const [msg, setMsg] = useState('');
   const [err, setErr] = useState('');
