@@ -185,13 +185,30 @@ SIMPLE_JWT = {
 }
 
 # CORS Configuration
-CORS_ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://localhost:3000,http://localhost:5174').split(',')
-# Clean up any potential empty origins
-CORS_ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS if origin.strip()]
+raw_cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://localhost:3000,http://localhost:5174').split(',')
+CORS_ALLOWED_ORIGINS = []
+for origin in raw_cors_origins:
+    origin_strip = origin.strip()
+    if origin_strip:
+        # Strip paths to prevent django-cors-headers system check errors (corsheaders.E014)
+        parsed = urllib.parse.urlparse(origin_strip)
+        if parsed.scheme and parsed.netloc:
+            CORS_ALLOWED_ORIGINS.append(f"{parsed.scheme}://{parsed.netloc}")
+        else:
+            CORS_ALLOWED_ORIGINS.append(origin_strip)
 
 # CSRF Configuration
-CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
-CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in CSRF_TRUSTED_ORIGINS if origin.strip()]
+raw_csrf_origins = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
+CSRF_TRUSTED_ORIGINS = []
+for origin in raw_csrf_origins:
+    origin_strip = origin.strip()
+    if origin_strip:
+        # Strip paths for CSRF safety check correctness
+        parsed = urllib.parse.urlparse(origin_strip)
+        if parsed.scheme and parsed.netloc:
+            CSRF_TRUSTED_ORIGINS.append(f"{parsed.scheme}://{parsed.netloc}")
+        else:
+            CSRF_TRUSTED_ORIGINS.append(origin_strip)
 
 # Dynamically trust hosts in ALLOWED_HOSTS for Django admin CSRF safety
 for host in ALLOWED_HOSTS:
