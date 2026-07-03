@@ -1,0 +1,26 @@
+services:
+  # Managed PostgreSQL Database
+  - type: db
+    name: re-ems-db
+    plan: free
+    ipAllowList: [] # Allows connections from all IPs (secured via database credentials)
+
+  # Django Backend Web Service
+  - type: web
+    name: re-ems-backend
+    runtime: python
+    rootDir: backend # Tells Render to look in the /backend subdirectory
+    plan: free
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate
+    startCommand: gunicorn core.wsgi:application
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: re-ems-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true # Render will generate a strong secret key automatically
+      - key: DEBUG
+        value: "False"
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false # Render will prompt you to enter the Vercel URL during creation, and won't override it on syncs

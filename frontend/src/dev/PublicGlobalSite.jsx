@@ -10,7 +10,8 @@ export default function PublicGlobalSite() {
   useEffect(() => {
     async function loadEvents() {
       try {
-        const response = await fetch('http://localhost:8000/api/v1/events/');
+        const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+        const response = await fetch(`${apiBase}/api/v1/events/`);
         const data = await response.json();
         // Public API lists all events, filter only published ones for public view
         const published = data.filter(e => e.status === 'published' || e.status === 'registration open');
