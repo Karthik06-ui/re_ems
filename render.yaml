@@ -1,10 +1,9 @@
-services:
+databases:
   # Managed PostgreSQL Database
-  - type: db
-    name: re-ems-db
+  - name: re-ems-db
     plan: free
-    ipAllowList: [] # Allows connections from all IPs (secured via database credentials)
 
+services:
   # Django Backend Web Service
   - type: web
     name: re-ems-backend
@@ -23,4 +22,4 @@ services:
       - key: DEBUG
         value: "False"
       - key: CORS_ALLOWED_ORIGINS
-        sync: false # Render will prompt you to enter the Vercel URL during creation, and won't override it on syncs
+        sync: false # Render will prompt you to enter the Vercel URL during creation
