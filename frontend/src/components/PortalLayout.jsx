@@ -11,7 +11,7 @@ export default function PortalLayout({ children }) {
   const handleLogout = () => {
     if (window.confirm("Do you want to logout?")) {
       logout();
-      navigate('/auth/login');
+      navigate('/portal/login');
     }
   };
 

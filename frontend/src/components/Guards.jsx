@@ -7,7 +7,8 @@ export function ProtectedRoute() {
   const location = useLocation();
 
   if (!isAuthenticated) {
-    return <Navigate to={`/auth/login${location.search}`} replace />;
+    const loginPath = location.pathname.startsWith('/portal') ? '/portal/login' : '/auth/login';
+    return <Navigate to={`${loginPath}${location.search}`} replace />;
   }
 
   return <Outlet />;
@@ -18,7 +19,8 @@ export function ProfileGate() {
   const location = useLocation();
 
   if (!isAuthenticated) {
-    return <Navigate to={`/auth/login${location.search}`} replace />;
+    const loginPath = location.pathname.startsWith('/portal') ? '/portal/login' : '/auth/login';
+    return <Navigate to={`${loginPath}${location.search}`} replace />;
   }
 
   if (!user?.is_profile_completed) {

@@ -17,6 +17,7 @@ import SettingsWorkspace from './pages/dashboard/SettingsWorkspace';
 import ParticipantDashboard from './pages/portal/ParticipantDashboard';
 import ParticipantProfile from './pages/portal/ParticipantProfile';
 import ParticipantEventDetail from './pages/portal/ParticipantEventDetail';
+import ParticipantAuthPage from './pages/portal/ParticipantAuthPage';
 
 // Guards
 import { ProtectedRoute, ProfileGate, AdminRoute } from './components/Guards';
@@ -51,6 +52,7 @@ function MainLayout() {
 
       {/* AUTHENTICATION PORTAL */}
       <Route path="/auth/login" element={<AuthPage />} />
+      <Route path="/portal/login" element={<ParticipantAuthPage />} />
       
       {/* PUBLIC EVENT PAGE */}
       <Route path="/events/:id" element={<PublicEventPage />} />

@@ -192,7 +192,7 @@ export default function PublicGlobalSite() {
                   </div>
 
                   <button
-                    onClick={() => navigate(`/auth/login?event=${ev.id}`)}
+                    onClick={() => navigate(`/portal/login?event=${ev.id}`)}
                     style={{
                       width: '100%',
                       padding: '12px',

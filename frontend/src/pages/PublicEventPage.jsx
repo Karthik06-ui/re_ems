@@ -42,7 +42,7 @@ export default function PublicEventPage() {
 
   const handleRegister = async () => {
     if (!isAuthenticated) {
-      navigate(`/auth/login?next=/events/${id}`);
+      navigate(`/portal/login?next=/events/${id}`);
       return;
     }
     setSubmitting(true);
@@ -114,7 +114,7 @@ export default function PublicEventPage() {
           </p>
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
             <Link to="/dashboard" className="btn btn-secondary">Go to Dashboard</Link>
-            <Link to="/auth/login" className="btn btn-primary">Sign In</Link>
+            <Link to="/portal/login" className="btn btn-primary">Sign In</Link>
           </div>
         </div>
       </div>
@@ -173,7 +173,7 @@ export default function PublicEventPage() {
               <span style={{ fontSize: '13px', color: 'var(--gdg-text-secondary)' }}>Signed in as <strong>{user.name}</strong></span>
             </>
           ) : (
-            <Link to={`/auth/login?next=/events/${id}`} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '12px' }}>
+            <Link to={`/portal/login?next=/events/${id}`} className="btn btn-secondary" style={{ padding: '6px 12px', fontSize: '12px' }}>
               Sign In
             </Link>
           )}

@@ -1,25 +1,49 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useState } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Shield, Mail, Lock, Terminal } from 'lucide-react';
+import { Shield, Mail, Lock, User } from 'lucide-react';
 
-export default function AuthPage() {
-  const { login, logout } = useAuth();
+export default function ParticipantAuthPage() {
+  const { login, register } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  
+
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // If there's an event ID in search params, immediately route to the participant login page
-  useEffect(() => {
-    const eventId = searchParams.get('event');
-    if (eventId) {
-      navigate(`/portal/login?event=${eventId}`, { replace: true });
+  const handleLoginRedirect = () => {
+    try {
+      const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const eventId = searchParams.get('event');
+      const isAdmin = ['platform_admin', 'chapter_lead', 'organizer'].includes(savedUser?.role);
+      
+      if (isAdmin) {
+        // Dual access accounts redirect to Admin workspace first
+        navigate('/dashboard', { replace: true });
+      } else {
+        // Standard participants
+        if (eventId) {
+          if (savedUser?.is_profile_completed) {
+            navigate(`/portal/events/${eventId}`, { replace: true });
+          } else {
+            navigate(`/portal/profile?event=${eventId}`, { replace: true });
+          }
+        } else {
+          if (savedUser?.is_profile_completed) {
+            navigate('/portal', { replace: true });
+          } else {
+            navigate('/portal/profile', { replace: true });
+          }
+        }
+      }
+    } catch {
+      navigate('/portal', { replace: true });
     }
-  }, [searchParams, navigate]);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -27,38 +51,23 @@ export default function AuthPage() {
     setLoading(true);
 
     try {
-      const { success, error: err } = await login(email, password);
-      if (success) {
-        const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
-        const isAdmin = ['platform_admin', 'chapter_lead', 'organizer'].includes(savedUser?.role);
-        
-        if (!isAdmin) {
-          // Deny access, clear state immediately
-          logout();
-          setError('Access denied. This login is reserved for Administrators/Organizers. Participants must log in via the Participant Portal.');
+      if (isLogin) {
+        const { success, error: err } = await login(email, password);
+        if (success) {
+          handleLoginRedirect();
         } else {
-          navigate('/dashboard', { replace: true });
+          setError(err);
         }
       } else {
-        setError(err);
+        const { success, error: err } = await register(name, email, password);
+        if (success) {
+          handleLoginRedirect();
+        } else {
+          setError(err);
+        }
       }
     } catch (err) {
       setError('An unexpected system error occurred.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleDemoMode = async () => {
-    setError('');
-    setLoading(true);
-    try {
-      const { success } = await login('lead@kumaraguru.gdg.dev', 'password', true);
-      if (success) {
-        navigate('/dashboard', { replace: true });
-      }
-    } catch (err) {
-      setError('Demo Mode initialization failed.');
     } finally {
       setLoading(false);
     }
@@ -72,14 +81,14 @@ export default function AuthPage() {
       minHeight: '100vh',
       width: '100%',
       fontFamily: 'var(--gdg-font), system-ui, sans-serif',
-      backgroundColor: 'var(--gdg-content-bg)',
+      backgroundColor: '#F8F9FA',
       boxSizing: 'border-box',
       padding: '20px'
     }}>
       <div style={{
         width: '100%',
         maxWidth: '440px',
-        backgroundColor: 'var(--card-bg)',
+        backgroundColor: '#FFF',
         border: '1px solid var(--gdg-border)',
         borderRadius: '12px',
         boxShadow: 'var(--shadow)',
@@ -91,17 +100,17 @@ export default function AuthPage() {
         {/* GDG Header Dots branding */}
         <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginBottom: '20px' }}>
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#4285F4' }}></span>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#EA4335' }}></span>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#FBBC05' }}></span>
           <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#34A853' }}></span>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#FBBC05' }}></span>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#EA4335' }}></span>
         </div>
 
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <h2 style={{ fontSize: '22px', fontWeight: 500, margin: '0 0 6px 0', color: 'var(--text-h)' }}>
-            Google Developer Groups
+          <h2 style={{ fontSize: '22px', fontWeight: 500, margin: '0 0 6px 0', color: 'var(--gdg-blue)' }}>
+            GDG Participant Portal
           </h2>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
-            Event Operations Dashboard Sign In
+            {isLogin ? 'Sign in to access your profile & events' : 'Create your participant account'}
           </p>
         </div>
 
@@ -125,6 +134,32 @@ export default function AuthPage() {
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          {!isLogin && (
+            <div className="form-group">
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                <User size={13} /> Full Name
+              </label>
+              <input 
+                type="text" 
+                value={name} 
+                onChange={e => setName(e.target.value)} 
+                placeholder="Enter your name" 
+                required 
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  backgroundColor: 'var(--input-bg)',
+                  color: 'var(--text-primary)',
+                  fontSize: '14px',
+                  outline: 'none',
+                  width: '100%',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+          )}
+
           <div className="form-group">
             <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
               <Mail size={13} /> Email Address
@@ -133,7 +168,7 @@ export default function AuthPage() {
               type="email" 
               value={email} 
               onChange={e => setEmail(e.target.value)} 
-              placeholder="name@chapter.gdg.dev"
+              placeholder="you@example.com"
               required 
               style={{
                 padding: '10px 12px',
@@ -192,57 +227,14 @@ export default function AuthPage() {
               marginTop: '6px'
             }}
           >
-            {loading ? 'Processing...' : 'Sign In'}
+            {loading ? 'Processing...' : (isLogin ? 'Sign In' : 'Create Account')}
           </button>
         </form>
 
-        {/* Demo Mode Action Box */}
-        <div style={{
-          marginTop: '24px',
-          padding: '16px',
-          backgroundColor: 'rgba(26, 115, 232, 0.04)',
-          border: '1px dashed rgba(26, 115, 232, 0.25)',
-          borderRadius: '8px',
-          textAlign: 'center'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginBottom: '8px' }}>
-            <Terminal size={14} style={{ color: 'var(--gdg-blue)' }} />
-            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--gdg-blue)' }}>Review & Dev Quick Access</span>
-          </div>
-          <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '12px', lineHeight: 1.4 }}>
-            Bypass database authentication and instantly load the pre-populated dashboard with a local organizer session.
-          </p>
-          <button 
-            type="button" 
-            onClick={handleDemoMode}
-            disabled={loading}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '4px',
-              border: '1px solid var(--gdg-blue)',
-              backgroundColor: '#FFF',
-              color: 'var(--gdg-blue)',
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-              width: '100%'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(26, 115, 232, 0.08)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = '#FFF';
-            }}
-          >
-            {loading ? 'Initializing Demo...' : 'Enter Demo Mode'}
-          </button>
-        </div>
-
         <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-          Are you a participant?{' '}
+          {isLogin ? "Need to create an account?" : 'Already have a profile?'}{' '}
           <button 
-            onClick={() => navigate('/portal/login')} 
+            onClick={() => setIsLogin(!isLogin)} 
             style={{ 
               background: 'none', 
               border: 'none', 
@@ -254,9 +246,35 @@ export default function AuthPage() {
               textDecoration: 'underline'
             }}
           >
-            Go to Participant Portal
+            {isLogin ? 'Sign Up' : 'Sign In'}
           </button>
         </p>
+
+        <div style={{
+          marginTop: '24px',
+          borderTop: '1px solid var(--gdg-border)',
+          paddingTop: '16px',
+          textAlign: 'center'
+        }}>
+          <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>
+            Are you an Organizer?{' '}
+            <button 
+              onClick={() => navigate('/auth/login')} 
+              style={{ 
+                background: 'none', 
+                border: 'none', 
+                color: 'var(--gdg-blue)', 
+                fontWeight: 600, 
+                cursor: 'pointer',
+                padding: 0,
+                fontSize: '12px',
+                textDecoration: 'underline'
+              }}
+            >
+              Sign In to Workspace
+            </button>
+          </p>
+        </div>
       </div>
     </div>
   );
