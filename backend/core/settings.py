@@ -197,6 +197,8 @@ for origin in raw_cors_origins:
         else:
             CORS_ALLOWED_ORIGINS.append(origin_strip)
 
+CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'True') == 'True'
+
 # CSRF Configuration
 raw_csrf_origins = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
 CSRF_TRUSTED_ORIGINS = []
