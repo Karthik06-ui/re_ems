@@ -19,7 +19,7 @@ class DjangoSMTPProvider(BaseEmailProvider):
             sent_count = send_mail(
                 subject=subject,
                 message=body,
-                from_email='noreply@communityplatform.com',
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@communityplatform.com'),
                 recipient_list=recipients,
                 fail_silently=False
             )
@@ -121,7 +121,7 @@ class EmailService:
                 send_mail(
                     subject=announcement.subject,
                     message=announcement.body,
-                    from_email='noreply@communityplatform.com',
+                    from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@communityplatform.com'),
                     recipient_list=recipients,
                     fail_silently=False
                 )
