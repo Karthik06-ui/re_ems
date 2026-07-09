@@ -158,7 +158,7 @@ export default function PublicEventPage() {
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#FBBC05' }}></span>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#34A853' }}></span>
           </div>
-          <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--gdg-text-secondary)' }}>Google Developer Groups</span>
+          <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--gdg-text-secondary)' }}>Research and Exploration (RÉ)</span>
         </div>
 
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>

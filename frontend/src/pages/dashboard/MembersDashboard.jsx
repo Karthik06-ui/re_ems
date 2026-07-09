@@ -19,7 +19,7 @@ export default function MembersDashboard() {
 
   // Invite states
   const [newEmail, setNewEmail] = useState('');
-  const [newRole, setNewRole] = useState('member');
+  const [newRole, setNewRole] = useState('participant');
 
   const fetchMembers = async () => {
     setLoading(true);
@@ -29,7 +29,7 @@ export default function MembersDashboard() {
         id: item.id,
         name: item.user.name || item.user.email,
         email: item.user.email,
-        role: item.role === 'chapter_lead' ? 'Chapter Lead' : item.role === 'organizer' ? 'Organizer' : 'Member',
+        role: item.role === 'admin' ? 'Admin' : 'Participant',
         status: 'Active',
         registrationsCount: item.user.registrations_count || 0,
         checkinsCount: item.user.checkins_count || 0,
@@ -49,7 +49,7 @@ export default function MembersDashboard() {
   }, []);
 
   const handleRoleChange = async (memberEmail, newRoleDisplay) => {
-    const backendRole = newRoleDisplay === 'Chapter Lead' ? 'chapter_lead' : newRoleDisplay === 'Organizer' ? 'organizer' : 'member';
+    const backendRole = newRoleDisplay === 'Admin' ? 'admin' : 'participant';
     
     const { status, data } = await apiRequest('/api/v1/auth/users/', 'POST', {
       user_email: memberEmail,
@@ -123,9 +123,8 @@ export default function MembersDashboard() {
               className="gdg-header-dropdown"
             >
               <option value="All">All Roles</option>
-              <option value="Chapter Lead">Chapter Lead</option>
-              <option value="Organizer">Organizer</option>
-              <option value="Member">Member</option>
+              <option value="Admin">Admin</option>
+              <option value="Participant">Participant</option>
             </select>
           </div>
 
@@ -162,9 +161,8 @@ export default function MembersDashboard() {
                             onChange={e => handleRoleChange(m.email, e.target.value)}
                             style={{ fontSize: '12px', padding: '2px 4px', borderRadius: '4px' }}
                           >
-                            <option value="Chapter Lead">Chapter Lead</option>
-                            <option value="Organizer">Organizer</option>
-                            <option value="Member">Member</option>
+                            <option value="Admin">Admin</option>
+                            <option value="Participant">Participant</option>
                           </select>
                           <button 
                             className="gdg-share-icon-btn" 
@@ -200,9 +198,8 @@ export default function MembersDashboard() {
               <div className="form-group">
                 <label>Assigned Role</label>
                 <select value={newRole} onChange={e => setNewRole(e.target.value)}>
-                  <option value="member">Member</option>
-                  <option value="organizer">Organizer</option>
-                  <option value="chapter_lead">Chapter Lead</option>
+                  <option value="participant">Participant</option>
+                  <option value="admin">Admin</option>
                 </select>
               </div>
               <button className="btn btn-primary" type="submit" style={{ alignSelf: 'flex-start' }}>Invite Member</button>

@@ -1,8 +1,8 @@
 /* Main Layout and Color Schemes */
 :root {
-  --primary: #aa3bff;
-  --primary-hover: #932ae6;
-  --primary-bg: rgba(170, 59, 255, 0.08);
+  --primary: #1b2b4b;
+  --primary-hover: #248689;
+  --primary-bg: rgba(36, 134, 137, 0.08);
   --success: #10b981;
   --success-bg: rgba(16, 185, 129, 0.1);
   --warning: #f59e0b;
@@ -475,22 +475,22 @@
 /* GDG Dashboard Experience Custom Styles */
 
 :root {
-  --gdg-blue: #1A73E8;
-  --gdg-active-blue: #1967D2;
+  --gdg-blue: #1b2b4b;
+  --gdg-active-blue: #248689;
   --gdg-sidebar-bg: #FFFFFF;
   --gdg-content-bg: #F8F9FA;
   --gdg-card-bg: #FFFFFF;
   --gdg-border: #E8EAED;
   --gdg-text-primary: #202124;
   --gdg-text-secondary: #5F6368;
-  --gdg-text-link: #1A73E8;
+  --gdg-text-link: #23829b;
   --gdg-success: #34A853;
   --gdg-draft: #F9AB00;
   --gdg-completed: #9AA0A6;
   --gdg-error: #EA4335;
-  --gdg-purple: #7C4DFF;
-  --gdg-teal: #00BFA5;
-  --gdg-font: 'Google Sans', 'Roboto', sans-serif;
+  --gdg-purple: #23829b;
+  --gdg-teal: #248689;
+  --gdg-font: 'Outfit', 'Google Sans', 'Roboto', sans-serif;
 }
 
 .gdg-dashboard-shell {
@@ -583,10 +583,10 @@
   cursor: pointer;
 }
 
-.logo-red { color: #EA4335; }
-.logo-blue { color: #4285F4; }
-.logo-yellow { color: #FBBC05; }
-.logo-green { color: #34A853; }
+.logo-red { color: #1b2b4b; }
+.logo-blue { color: #248689; }
+.logo-yellow { color: #23829b; }
+.logo-green { color: #248689; }
 
 .chapter-avatar-tile {
   display: flex;

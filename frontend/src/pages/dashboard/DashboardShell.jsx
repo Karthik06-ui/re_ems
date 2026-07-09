@@ -64,7 +64,7 @@ export default function DashboardShell({ children, sectionTitle }) {
     <div className="gdg-dashboard-shell">
       {/* 1. FIXED TOP FEEDBACK BANNER */}
       <div className="gdg-feedback-banner">
-        <span>Help us improve the GDG program by sharing your feedback!</span>
+        <span>Help us improve the RÉ program by sharing your feedback!</span>
       </div>
       
       {/* SUB-TEXT BANNER */}
@@ -99,10 +99,10 @@ export default function DashboardShell({ children, sectionTitle }) {
             </div>
             <div className="chapter-avatar-tile">
               <div className="avatar-square">
-                GD
+                RÉ
               </div>
-              <span className="avatar-label" title="GDG Workspace">
-                GDG Workspace
+              <span className="avatar-label" title="RÉ Workspace">
+                RÉ Workspace
               </span>
             </div>
           </div>
@@ -151,7 +151,7 @@ export default function DashboardShell({ children, sectionTitle }) {
               <h2 className="gdg-page-title">
                 {sectionTitle ? `${sectionTitle}: ` : ''}
                   <span className="font-normal text-gray-800">
-                    GDG Workspace
+                    RÉ Workspace
                   </span>
               </h2>
             </div>

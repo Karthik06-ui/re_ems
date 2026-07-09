@@ -10,49 +10,23 @@ import { useAuth } from '../../contexts/AuthContext';
 
 import { StatCard, DashboardCard } from '../../components/DashboardComponents';
 
-// Mock charts data
-const registrationsOverTime = [
-  { name: 'Jan', registered: 45 },
-  { name: 'Feb', registered: 80 },
-  { name: 'Mar', registered: 120 },
-  { name: 'Apr', registered: 190 },
-  { name: 'May', registered: 260 },
-  { name: 'Jun', registered: 309 }
-];
-
-const capacityUtilization = [
-  { name: 'Tech Summit', capacity: 100, registrations: 100 },
-  { name: 'Cloud Lab', capacity: 150, registrations: 120 },
-  { name: 'Women in Tech', capacity: 80, registrations: 80 },
-  { name: 'Era of Infinite', capacity: 1000, registrations: 182 }
-];
-
-const memberGrowth = [
-  { name: 'Jul 24', members: 120 },
-  { name: 'Sep 24', members: 210 },
-  { name: 'Nov 24', members: 320 },
-  { name: 'Jan 25', members: 393 }
-];
-
-const sponsorEngagement = [
-  { name: 'Google Cloud', clicks: 180, visits: 290 },
-  { name: 'Vercel', clicks: 120, visits: 210 },
-  { name: 'JetBrains', clicks: 90, visits: 140 }
-];
-
 export default function AnalyticsDashboard() {
   const { tab = 'overview' } = useParams();
   const navigate = useNavigate();
   const { apiRequest } = useAuth();
 
-  
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({
-    events: 3,
-    registrations: 309,
-    members: 393,
-    rate: 85.5
+    events: 0,
+    registrations: 0,
+    members: 0,
+    rate: 0
   });
+
+  const [registrationsOverTime, setRegistrationsOverTime] = useState([]);
+  const [capacityUtilization, setCapacityUtilization] = useState([]);
+  const [memberGrowth, setMemberGrowth] = useState([]);
+  const [sponsorEngagement, setSponsorEngagement] = useState([]);
 
   useEffect(() => {
     setLoading(true);
@@ -62,11 +36,15 @@ export default function AnalyticsDashboard() {
       const { status, data } = await apiRequest('/api/v1/analytics/overview/', 'GET', null, true);
       if (status === 200) {
         setStats({
-          events: data.total_events || 3,
-          registrations: data.total_registrations || 309,
-          members: data.total_members || 393,
-          rate: data.engagement_metrics?.attendance_rate || 85.5
+          events: data.total_events || 0,
+          registrations: data.total_registrations || 0,
+          members: data.total_members || 0,
+          rate: data.engagement_metrics?.attendance_rate || 0
         });
+        setRegistrationsOverTime(data.registrations_over_time || []);
+        setCapacityUtilization(data.capacity_utilization || []);
+        setMemberGrowth(data.member_growth || []);
+        setSponsorEngagement(data.sponsor_engagement || []);
       }
     };
     fetchOverviewData();

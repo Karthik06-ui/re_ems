@@ -38,8 +38,7 @@ export function AdminRoute() {
     return <Navigate to={`/auth/login${location.search}`} replace />;
   }
 
-  const adminRoles = ['platform_admin', 'chapter_lead', 'organizer'];
-  if (!adminRoles.includes(user?.role)) {
+  if (user?.role !== 'admin') {
     return <Navigate to="/portal" replace />;
   }
 

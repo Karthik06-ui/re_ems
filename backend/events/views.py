@@ -232,7 +232,7 @@ class EventViewSet(viewsets.ModelViewSet):
     def checkin(self, request, pk=None):
         event = self.get_object()
         # Verify checking user is chapter organizer or admin
-        is_organizer = request.user.role in [User.Role.PLATFORM_ADMIN, User.Role.CHAPTER_LEAD, User.Role.ORGANIZER]
+        is_organizer = request.user.role == User.Role.ADMIN
 
         if not is_organizer:
             return Response(
@@ -379,7 +379,7 @@ class ChapterSettingDetailView(APIView):
         return Response(serializer.data)
 
     def patch(self, request, slug):
-        if request.user.role not in [User.Role.PLATFORM_ADMIN, User.Role.CHAPTER_LEAD, User.Role.ORGANIZER]:
+        if request.user.role != User.Role.ADMIN:
             return Response(
                 {"detail": "You do not have permission to modify chapter settings."},
                 status=status.HTTP_403_FORBIDDEN

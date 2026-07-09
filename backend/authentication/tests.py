@@ -25,7 +25,7 @@ class AuthenticationTests(APITestCase):
         self.assertIn('user', response.data)
         self.assertEqual(response.data['user']['email'], self.user_data['email'].lower())
         self.assertEqual(response.data['user']['name'], self.user_data['name'])
-        self.assertEqual(response.data['user']['role'], User.Role.MEMBER)
+        self.assertEqual(response.data['user']['role'], User.Role.PARTICIPANT)
 
     def test_user_registration_duplicate_email(self):
         """Ensure duplicate email registration is rejected."""
@@ -87,4 +87,32 @@ class AuthenticationTests(APITestCase):
         # Verify db persistence
         user.refresh_from_db()
         self.assertEqual(user.name, 'Jane Updated')
+
+    def test_admin_registration_success(self):
+        """Ensure a user can register as admin when the correct key is provided."""
+        from django.conf import settings
+        url = reverse('auth_register_admin')
+        payload = {
+            **self.user_data,
+            'admin_key': settings.ADMIN_REGISTRATION_KEY
+        }
+        response = self.client.post(url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn('access', response.data)
+        
+        # Verify user created with ADMIN role
+        user = User.objects.get(email=self.user_data['email'])
+        self.assertEqual(user.role, User.Role.ADMIN)
+
+    def test_admin_registration_failure_invalid_key(self):
+        """Ensure admin registration is rejected when the wrong key is provided."""
+        url = reverse('auth_register_admin')
+        payload = {
+            **self.user_data,
+            'admin_key': 'wrong_key'
+        }
+        response = self.client.post(url, payload, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('admin_key', response.data)
+
 

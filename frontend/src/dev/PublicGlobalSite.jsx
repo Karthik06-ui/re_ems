@@ -53,8 +53,8 @@ export default function PublicGlobalSite() {
           </p>
         </div>
         <span style={{
-          backgroundColor: '#E8F0FE',
-          color: '#1A73E8',
+          backgroundColor: 'rgba(36, 134, 137, 0.08)',
+          color: '#248689',
           fontSize: '11px',
           fontWeight: 'bold',
           padding: '6px 12px',
@@ -72,7 +72,7 @@ export default function PublicGlobalSite() {
         boxSizing: 'border-box'
       }}>
         <div style={{
-          background: 'linear-gradient(135deg, #4285F4 0%, #34A853 100%)',
+          background: 'linear-gradient(135deg, #1b2b4b 0%, #248689 100%)',
           borderRadius: '16px',
           padding: '40px',
           color: '#FFF',
@@ -80,7 +80,7 @@ export default function PublicGlobalSite() {
         }}>
           <h2 style={{ fontSize: '28px', margin: '0 0 12px 0', fontWeight: 500 }}>Find Upcoming Workshops & Hackathons</h2>
           <p style={{ margin: 0, opacity: 0.9, fontSize: '15px', maxWidth: '600px', lineHeight: 1.5 }}>
-            Browse and sign up for research initiatives hosted by the Kumaraguru Google Developer Group Chapter.
+            Browse and sign up for research initiatives hosted by the Kumaraguru Research and Exploration (RÉ) Chapter.
           </p>
         </div>
       </div>
@@ -139,7 +139,7 @@ export default function PublicGlobalSite() {
                 {/* Event Image Banner */}
                 <div style={{
                   height: '150px',
-                  background: ev.cover_image ? `url(${ev.cover_image}) center/cover no-repeat` : 'linear-gradient(135deg, #1A73E8 0%, #7C4DFF 100%)',
+                  background: ev.cover_image ? `url(${ev.cover_image}) center/cover no-repeat` : 'linear-gradient(135deg, #1b2b4b 0%, #23829b 100%)',
                   position: 'relative'
                 }}>
                   <span style={{
@@ -180,11 +180,11 @@ export default function PublicGlobalSite() {
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto', marginBottom: '24px' }}>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '12px', color: '#5F6368' }}>
-                      <Calendar size={14} style={{ color: '#1A73E8', flexShrink: 0 }} />
+                      <Calendar size={14} style={{ color: '#23829b', flexShrink: 0 }} />
                       <span>{new Date(ev.start_time).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })}</span>
                     </div>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '12px', color: '#5F6368' }}>
-                      <MapPin size={14} style={{ color: '#1A73E8', flexShrink: 0 }} />
+                      <MapPin size={14} style={{ color: '#23829b', flexShrink: 0 }} />
                       <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '220px' }}>
                         {ev.venue || 'Virtual / Online'}
                       </span>
@@ -197,7 +197,7 @@ export default function PublicGlobalSite() {
                       width: '100%',
                       padding: '12px',
                       borderRadius: '6px',
-                      backgroundColor: '#1A73E8',
+                      backgroundColor: '#1b2b4b',
                       color: '#FFF',
                       border: 'none',
                       fontSize: '13px',
@@ -209,8 +209,8 @@ export default function PublicGlobalSite() {
                       gap: '6px',
                       transition: 'background-color 0.2s'
                     }}
-                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1557B0'}
-                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#1A73E8'}
+                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#248689'}
+                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#1b2b4b'}
                   >
                     <span>Register Now</span>
                     <ArrowRight size={14} />

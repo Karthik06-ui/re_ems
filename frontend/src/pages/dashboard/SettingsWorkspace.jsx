@@ -31,7 +31,7 @@ export default function SettingsWorkspace() {
   // Team Tab States
   const [teamMembers, setTeamMembers] = useState([]);
   const [newTeamEmail, setNewTeamEmail] = useState('');
-  const [newTeamRole, setNewTeamRole] = useState('Organizer');
+  const [newTeamRole, setNewTeamRole] = useState('Admin');
 
   // Tracking Tab States
   const [gaTrackingId, setGaTrackingId] = useState('G-XXXXXXXXXX');
@@ -61,9 +61,9 @@ export default function SettingsWorkspace() {
         id: item.id,
         name: item.user.name || item.user.email,
         email: item.user.email,
-        role: item.role === 'chapter_lead' ? 'Chapter Lead' : item.role === 'organizer' ? 'Organizer' : 'Member',
-        canPublish: item.role !== 'member',
-        canEmail: item.role !== 'member'
+        role: item.role === 'admin' ? 'Admin' : 'Participant',
+        canPublish: item.role === 'admin',
+        canEmail: item.role === 'admin'
       })));
     }
   };
@@ -104,8 +104,8 @@ export default function SettingsWorkspace() {
     const member = teamMembers.find(m => m.id === memberId);
     if (!member) return;
 
-    const isCurrentlyPrivileged = member.role !== 'Member';
-    const newRole = isCurrentlyPrivileged ? 'member' : 'organizer';
+    const isCurrentlyPrivileged = member.role === 'Admin';
+    const newRole = isCurrentlyPrivileged ? 'participant' : 'admin';
 
     const { status, data } = await apiRequest('/api/v1/auth/users/', 'POST', {
       user_email: member.email,
@@ -122,7 +122,7 @@ export default function SettingsWorkspace() {
   const handleAddTeamMember = async (e) => {
     e.preventDefault();
     if (!newTeamEmail) return;
-    const backendRole = newTeamRole === 'Chapter Lead' ? 'chapter_lead' : 'organizer';
+    const backendRole = newTeamRole === 'Admin' ? 'admin' : 'participant';
 
     const { status, data } = await apiRequest('/api/v1/auth/users/', 'POST', {
       user_email: newTeamEmail,
@@ -242,10 +242,10 @@ export default function SettingsWorkspace() {
               <DashboardCard title="Active parameters status">
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                   <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: 'var(--gdg-success)' }} />
-                  <strong>Active GDG Chapter</strong>
+                  <strong>Active RÉ Chapter</strong>
                 </div>
                 <p style={{ marginTop: '12px', fontSize: '13px', color: 'var(--gdg-text-secondary)', lineHeight: 1.5 }}>
-                  This chapter is actively synced with global Google Developers Group telemetry.
+                  This chapter is actively synced with global Research and Exploration (RÉ) telemetry.
                 </p>
               </DashboardCard>
             </div>
@@ -368,8 +368,8 @@ export default function SettingsWorkspace() {
                 <div className="form-group">
                   <label>Role</label>
                   <select value={newTeamRole} onChange={e => setNewTeamRole(e.target.value)}>
-                    <option value="Organizer">Organizer</option>
-                    <option value="Chapter Lead">Chapter Lead</option>
+                    <option value="Admin">Admin</option>
+                    <option value="Participant">Participant</option>
                   </select>
                 </div>
                 <button className="btn btn-primary" type="submit">Invite Member</button>

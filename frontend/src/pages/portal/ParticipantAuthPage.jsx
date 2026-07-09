@@ -19,7 +19,7 @@ export default function ParticipantAuthPage() {
     try {
       const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
       const eventId = searchParams.get('event');
-      const isAdmin = ['platform_admin', 'chapter_lead', 'organizer'].includes(savedUser?.role);
+      const isAdmin = savedUser?.role === 'admin';
       
       if (isAdmin) {
         // Dual access accounts redirect to Admin workspace first
@@ -99,15 +99,15 @@ export default function ParticipantAuthPage() {
       }}>
         {/* GDG Header Dots branding */}
         <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginBottom: '20px' }}>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#4285F4' }}></span>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#34A853' }}></span>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#FBBC05' }}></span>
-          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#EA4335' }}></span>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#1b2b4b' }}></span>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#248689' }}></span>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#23829b' }}></span>
+          <span style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#248689' }}></span>
         </div>
 
         <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-          <h2 style={{ fontSize: '22px', fontWeight: 500, margin: '0 0 6px 0', color: 'var(--gdg-blue)' }}>
-            GDG Participant Portal
+          <h2 style={{ fontSize: '22px', fontWeight: 500, margin: '0 0 6px 0', color: '#248689' }}>
+            RÉ Participant Portal
           </h2>
           <p style={{ fontSize: '13px', color: 'var(--text-secondary)', margin: 0 }}>
             {isLogin ? 'Sign in to access your profile & events' : 'Create your participant account'}
@@ -218,8 +218,8 @@ export default function ParticipantAuthPage() {
               padding: '11px', 
               fontSize: '14px', 
               borderRadius: '6px',
-              backgroundColor: 'var(--gdg-blue)',
-              borderColor: 'var(--gdg-blue)',
+              backgroundColor: '#248689',
+              borderColor: '#248689',
               color: '#FFF',
               fontWeight: 500,
               cursor: loading ? 'not-allowed' : 'pointer',
@@ -238,7 +238,7 @@ export default function ParticipantAuthPage() {
             style={{ 
               background: 'none', 
               border: 'none', 
-              color: 'var(--gdg-blue)', 
+              color: '#248689', 
               fontWeight: 600, 
               cursor: 'pointer',
               padding: 0,
@@ -263,7 +263,7 @@ export default function ParticipantAuthPage() {
               style={{ 
                 background: 'none', 
                 border: 'none', 
-                color: 'var(--gdg-blue)', 
+                color: '#248689', 
                 fontWeight: 600, 
                 cursor: 'pointer',
                 padding: 0,

@@ -67,23 +67,7 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const login = async (email, password, forceDemo = false) => {
-    if (forceDemo) {
-      console.log("Forcing Developer Demo Mode Session.");
-      const devUser = {
-        id: 999,
-        name: 'Developer Admin',
-        email: email || 'lead@kumaraguru.gdg.dev',
-        role: 'chapter_lead'
-      };
-      setAccessToken('dev-jwt-token');
-      setRefreshToken('dev-refresh-token');
-      setCurrentUser(devUser);
-      localStorage.setItem('access_token', 'dev-jwt-token');
-      localStorage.setItem('refresh_token', 'dev-refresh-token');
-      localStorage.setItem('user', JSON.stringify(devUser));
-      return { success: true };
-    }
+  const login = async (email, password) => {
 
     const { status, data } = await apiRequest('/api/v1/auth/token/', 'POST', { email, password }, false);
     if (status === 200) {
@@ -93,24 +77,6 @@ export function AuthProvider({ children }) {
       localStorage.setItem('access_token', data.access);
       localStorage.setItem('refresh_token', data.refresh);
       localStorage.setItem('user', JSON.stringify(data.user));
-      return { success: true };
-    }
-
-    // Temporary Development Session Fallback if backend is down
-    if (status === 500 || data.error?.includes('fetch') || data.error?.includes('Network') || data.error?.includes('Failed')) {
-      console.warn("Backend server offline. Enabling Dev Session Fallback.");
-      const devUser = {
-        id: 999,
-        name: 'Developer Admin',
-        email: email || 'lead@kumaraguru.gdg.dev',
-        role: 'chapter_lead'
-      };
-      setAccessToken('dev-jwt-token');
-      setRefreshToken('dev-refresh-token');
-      setCurrentUser(devUser);
-      localStorage.setItem('access_token', 'dev-jwt-token');
-      localStorage.setItem('refresh_token', 'dev-refresh-token');
-      localStorage.setItem('user', JSON.stringify(devUser));
       return { success: true };
     }
 
@@ -129,6 +95,26 @@ export function AuthProvider({ children }) {
       return { success: true };
     }
     return { success: false, error: data.email ? data.email[0] : 'Registration failed' };
+  };
+
+  const registerAdmin = async (name, email, password, adminKey) => {
+    const { status, data } = await apiRequest('/api/v1/auth/register-admin/', 'POST', { 
+      name, 
+      email, 
+      password,
+      admin_key: adminKey
+    }, false);
+    if (status === 201) {
+      setAccessToken(data.access);
+      setRefreshToken(data.refresh);
+      setCurrentUser(data.user);
+      localStorage.setItem('access_token', data.access);
+      localStorage.setItem('refresh_token', data.refresh);
+      localStorage.setItem('user', JSON.stringify(data.user));
+      return { success: true };
+    }
+    const errorMsg = data.admin_key ? data.admin_key[0] : (data.email ? data.email[0] : 'Admin registration failed');
+    return { success: false, error: errorMsg };
   };
 
   const logout = () => {
@@ -156,6 +142,7 @@ export function AuthProvider({ children }) {
       token: accessToken,
       login,
       register,
+      registerAdmin,
       logout,
       fetchProfile,
       apiRequest,

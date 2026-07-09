@@ -15,7 +15,7 @@ export default function PortalLayout({ children }) {
     }
   };
 
-  const isAdmin = ['platform_admin', 'chapter_lead', 'organizer'].includes(user?.role);
+  const isAdmin = user?.role === 'admin';
 
   return (
     <div className="gdg-dashboard-shell">
@@ -104,7 +104,7 @@ export default function PortalLayout({ children }) {
           <header className="gdg-content-header">
             <div className="gdg-title-section">
               <h2 className="gdg-page-title">
-                Participant: <span className="font-normal text-gray-800">GDG Workspace</span>
+                Participant: <span className="font-normal text-gray-800">RÉ Workspace</span>
               </h2>
             </div>
             

@@ -140,12 +140,12 @@ class Announcement(models.Model):
 
 class ChapterSetting(models.Model):
     slug = models.SlugField(max_length=100, unique=True, default='gdg-workspace')
-    name = models.CharField(max_length=255, default='GDG Workspace')
+    name = models.CharField(max_length=255, default='Research and Exploration (RÉ) Workspace')
     location = models.CharField(max_length=255, blank=True, default='Coimbatore, Tamil Nadu, India')
-    description = models.TextField(blank=True, default='Kumaraguru Google Developer Group Chapter.')
+    description = models.TextField(blank=True, default='Kumaraguru Research and Exploration (RÉ) Chapter.')
     logo = models.URLField(max_length=500, blank=True, default='https://www.gstatic.com/devrel-devsite/prod/v559d28dbd68e4de88d1d8ef35b54203a7a97c27632669e46a782e46e8557ee7a/developers/images/touchicon-180.png')
     banner = models.URLField(max_length=500, blank=True, default='https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=1200&auto=format&fit=crop&q=80')
-    theme_color = models.CharField(max_length=50, default='#1A73E8')
+    theme_color = models.CharField(max_length=50, default='#1b2b4b')
     ga_tracking_id = models.CharField(max_length=50, default='G-XXXXXXXXXX')
 
     def __str__(self):

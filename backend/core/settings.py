@@ -222,4 +222,6 @@ for host in ALLOWED_HOSTS:
 
 SILENCED_SYSTEM_CHECKS = ['fields.E180']
 
+ADMIN_REGISTRATION_KEY = os.getenv('ADMIN_REGISTRATION_KEY', 'eventadminkey2026')
+
 

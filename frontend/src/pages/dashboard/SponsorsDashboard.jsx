@@ -13,8 +13,8 @@ export default function SponsorsDashboard() {
   const [loading, setLoading] = useState(true);
 
   // Form states
-  const [name, setName] = useState('Google Developers');
-  const [website, setWebsite] = useState('https://developers.google.com');
+  const [name, setName] = useState('Kumaraguru Research Fund');
+  const [website, setWebsite] = useState('https://research.kumaraguru.edu');
   const [tier, setTier] = useState('platinum');
 
   const [msg, setMsg] = useState('');

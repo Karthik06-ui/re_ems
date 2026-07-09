@@ -265,7 +265,7 @@ export function EventCard({ event, onEdit, onView, onDuplicate, onDelete, onTran
               <span className="logo-yellow" style={{ fontSize: '20px' }}>●</span>
               <span className="logo-green" style={{ fontSize: '20px' }}>●</span>
             </div>
-            <span style={{ fontSize: '11px', color: '#8b8ba0', fontWeight: 'bold' }}>GDG Chapter Event</span>
+            <span style={{ fontSize: '11px', color: '#8b8ba0', fontWeight: 'bold' }}>RÉ Chapter Event</span>
           </>
         )}
       </div>

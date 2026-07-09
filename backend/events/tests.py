@@ -95,11 +95,11 @@ class ChapterSettingTests(APITestCase):
     def setUp(self):
         self.admin_user = User.objects.create_user(
             email='admin@test.com', name='Admin User', password='password123',
-            role=User.Role.PLATFORM_ADMIN, roll_number='ADM01', department='ADMIN', phone_number='1111111111'
+            role=User.Role.ADMIN, roll_number='ADM01', department='ADMIN', phone_number='1111111111'
         )
         self.member_user = User.objects.create_user(
             email='member@test.com', name='Member User', password='password123',
-            role=User.Role.MEMBER, roll_number='MEM01', department='CSE', phone_number='2222222222'
+            role=User.Role.PARTICIPANT, roll_number='MEM01', department='CSE', phone_number='2222222222'
         )
         self.url = reverse('chapter-detail', kwargs={'slug': 'gdg-workspace'})
 
@@ -107,7 +107,7 @@ class ChapterSettingTests(APITestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['slug'], 'gdg-workspace')
-        self.assertEqual(response.data['name'], 'GDG Workspace')
+        self.assertEqual(response.data['name'], 'Research and Exploration (RÉ) Workspace')
 
     def test_patch_chapter_settings_unauthorized(self):
         self.client.force_authenticate(user=self.member_user)
