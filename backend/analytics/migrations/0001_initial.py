@@ -17,7 +17,7 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('event_type', models.CharField(max_length=100)),
                 ('entity_id', models.CharField(blank=True, max_length=100, null=True)),
-                ('metadata', models.JSONField(blank=True, default=dict)),
+                ('metadata', models.TextField(blank=True, default='{}')),
                 ('timestamp', models.DateTimeField(auto_now_add=True)),
             ],
         ),

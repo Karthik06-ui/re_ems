@@ -63,6 +63,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'authentication.middleware.AdminProfileMiddleware',
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -224,7 +225,7 @@ for host in ALLOWED_HOSTS:
 
 SILENCED_SYSTEM_CHECKS = ['fields.E180']
 
-ADMIN_REGISTRATION_KEY = os.getenv('ADMIN_REGISTRATION_KEY', 'eventadminkey2026')
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL', 'student.research@kct.ac.in')
 
 # Email Configuration (Resend SMTP integration)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'

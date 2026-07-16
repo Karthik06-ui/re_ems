@@ -11,12 +11,14 @@ import {
   Send, 
   Award, 
   Settings, 
-  Bell
+  Bell,
+  UserCheck,
+  FileText
 } from 'lucide-react';
 // import { NotificationDrawer } from '../../components/DashboardComponents';
 
 export default function DashboardShell({ children, sectionTitle }) {
-  const { user, logout } = useAuth();
+  const { user, adminProfile, logout } = useAuth();
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -38,6 +40,8 @@ export default function DashboardShell({ children, sectionTitle }) {
     { label: 'Members', path: '/dashboard/members', icon: Users },
     { label: 'Outreach', path: '/dashboard/outreach', icon: Send },
     { label: 'Sponsors', path: '/dashboard/sponsors', icon: Award },
+    { label: 'Profiles', path: '/dashboard/profiles', icon: UserCheck },
+    { label: 'Audit Log', path: '/dashboard/audit-log', icon: FileText },
     { label: 'Settings', path: '/dashboard/settings/overview', icon: Settings },
   ];
 
@@ -84,7 +88,14 @@ export default function DashboardShell({ children, sectionTitle }) {
         >
           Switch to Participant View
         </button>
-        <span style={{ fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>Role: <strong style={{ textTransform: 'uppercase' }}>{user.role}</strong></span>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <span style={{ fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>Account: <strong style={{ textTransform: 'uppercase' }}>{user?.is_admin ? 'ADMIN' : 'PARTICIPANT'}</strong></span>
+          {adminProfile && (
+            <span style={{ fontSize: '11px', color: '#248689', backgroundColor: 'rgba(36,134,137,0.1)', padding: '2px 8px', borderRadius: '12px' }}>
+              Profile: <strong>{adminProfile.name}</strong>
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="gdg-dashboard-body">
@@ -131,15 +142,15 @@ export default function DashboardShell({ children, sectionTitle }) {
           <div className="gdg-sidebar-bottom">
             <div 
               className="user-circular-avatar" 
-              title={`${user?.name} (Logout)`}
+              title={`${adminProfile?.name || user?.name} (Logout)`}
               onClick={() => {
                 if (window.confirm('Do you want to logout?')) {
                   logout();
-                  navigate('/');
+                  navigate('/auth/login');
                 }
               }}
             >
-              {user?.name?.substring(0, 1).toUpperCase() || 'U'}
+              {(adminProfile?.name || user?.name)?.substring(0, 1).toUpperCase() || 'U'}
             </div>
           </div>
         </aside>

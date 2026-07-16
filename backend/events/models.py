@@ -1,5 +1,7 @@
 from django.db import models
 from django.conf import settings
+import uuid
+
 
 class Event(models.Model):
     class EventType(models.TextChoices):
@@ -36,8 +38,23 @@ class Event(models.Model):
     venue = models.CharField(max_length=255, blank=True)
     capacity = models.PositiveIntegerField(default=100)
     cover_image = models.URLField(max_length=500, blank=True, null=True)
+    registration_mode = models.CharField(
+        max_length=20,
+        choices=[('individual', 'Individual'), ('team', 'Team')],
+        default='individual'
+    )
+    min_team_size = models.PositiveIntegerField(default=1, null=True, blank=True)
+    max_team_size = models.PositiveIntegerField(default=1, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
+    created_by_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='created_events'
+    )
+    created_by_profile = models.ForeignKey(
+        'authentication.AdminProfile', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='created_events'
+    )
 
     def __str__(self):
         return self.title
@@ -54,6 +71,13 @@ class Registration(models.Model):
     ticket_type = models.CharField(max_length=50, default='general')
     registered_at = models.DateTimeField(auto_now_add=True)
     checked_in_at = models.DateTimeField(null=True, blank=True)
+    team = models.ForeignKey(
+        'Team',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='registrations'
+    )
 
     class Meta:
         unique_together = ('event', 'user')
@@ -65,6 +89,13 @@ class Waitlist(models.Model):
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='waitlists')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='waitlists')
     position = models.PositiveIntegerField()
+    team = models.ForeignKey(
+        'Team',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='waitlists'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -150,5 +181,71 @@ class ChapterSetting(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class Team(models.Model):
+    class RegistrationStatus(models.TextChoices):
+        PENDING = 'pending', 'Pending (Draft)'
+        REGISTERED = 'registered', 'Registered'
+        WAITLISTED = 'waitlisted', 'Waitlisted'
+        SUSPENDED = 'suspended_incomplete', 'Suspended (Incomplete)'
+        CANCELLED = 'cancelled', 'Cancelled'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='teams')
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    leader = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='led_teams')
+    status = models.CharField(max_length=30, choices=RegistrationStatus.choices, default=RegistrationStatus.PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('event', 'leader')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.name} ({self.event.title})"
+
+
+class TeamMember(models.Model):
+    class Role(models.TextChoices):
+        LEADER = 'leader', 'Leader'
+        MEMBER = 'member', 'Member'
+
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='members')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='team_memberships')
+    role = models.CharField(max_length=20, choices=Role.choices, default=Role.MEMBER)
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('team', 'user')
+
+    def __str__(self):
+        return f"{self.user.email} in {self.team.name} ({self.role})"
+
+
+class TeamInvitation(models.Model):
+    class InvitationStatus(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        ACCEPTED = 'accepted', 'Accepted'
+        DECLINED = 'declined', 'Declined'
+        EXPIRED = 'expired', 'Expired'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name='invitations')
+    email = models.EmailField(db_index=True)
+    invited_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_invitations')
+    status = models.CharField(max_length=20, choices=InvitationStatus.choices, default=InvitationStatus.PENDING)
+    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('team', 'email')
+
+    def __str__(self):
+        return f"Invite for {self.email} to {self.team.name} ({self.status})"
+
 
 

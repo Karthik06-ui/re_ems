@@ -2,6 +2,7 @@ import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import AuthPage from './pages/AuthPage';
+import AdminProfileSelect from './pages/AdminProfileSelect';
 import PublicEventPage from './pages/PublicEventPage';
 import DashboardOverview from './pages/dashboard/DashboardOverview';
 import AnalyticsDashboard from './pages/dashboard/AnalyticsDashboard';
@@ -12,6 +13,8 @@ import MembersDashboard from './pages/dashboard/MembersDashboard';
 import OutreachDashboard from './pages/dashboard/OutreachDashboard';
 import SponsorsDashboard from './pages/dashboard/SponsorsDashboard';
 import SettingsWorkspace from './pages/dashboard/SettingsWorkspace';
+import AdminProfilesDashboard from './pages/dashboard/AdminProfilesDashboard';
+import AuditLogDashboard from './pages/dashboard/AuditLogDashboard';
 
 // Portal components
 import ParticipantDashboard from './pages/portal/ParticipantDashboard';
@@ -20,7 +23,7 @@ import ParticipantEventDetail from './pages/portal/ParticipantEventDetail';
 import ParticipantAuthPage from './pages/portal/ParticipantAuthPage';
 
 // Guards
-import { ProtectedRoute, ProfileGate, AdminRoute } from './components/Guards';
+import { ProtectedRoute, ProfileGate, AdminRoute, ProfileRequiredRoute } from './components/Guards';
 
 import './App.css';
 
@@ -70,6 +73,12 @@ function MainLayout() {
 
         {/* INTERNAL EVENT MANAGEMENT DASHBOARD ROUTES (ADMIN ONLY) */}
         <Route element={<AdminRoute />}>
+          {/* Profile Selection - requires Admin but not a selected profile */}
+          <Route path="/auth/profile-select" element={<AdminProfileSelect />} />
+        </Route>
+
+        {/* PROFILE REQUIRED ROUTES */}
+        <Route element={<ProfileRequiredRoute />}>
           <Route path="/dashboard" element={<DashboardOverview />} />
           <Route path="/dashboard/analytics" element={<Navigate to="/dashboard/analytics/overview" replace />} />
           <Route path="/dashboard/analytics/:tab" element={<AnalyticsDashboard />} />
@@ -78,10 +87,12 @@ function MainLayout() {
           <Route path="/dashboard/events/:id/:tab" element={<EventDetailWorkspace />} />
           <Route path="/dashboard/registrations" element={<RegistrationsDashboard />} />
           <Route path="/dashboard/members" element={<MembersDashboard />} />
-           <Route path="/dashboard/outreach" element={<OutreachDashboard />} />
+          <Route path="/dashboard/outreach" element={<OutreachDashboard />} />
           <Route path="/dashboard/sponsors" element={<SponsorsDashboard />} />
           <Route path="/dashboard/settings" element={<Navigate to="/dashboard/settings/overview" replace />} />
           <Route path="/dashboard/settings/:tab" element={<SettingsWorkspace />} />
+          <Route path="/dashboard/profiles" element={<AdminProfilesDashboard />} />
+          <Route path="/dashboard/audit-log" element={<AuditLogDashboard />} />
         </Route>
       </Route>
       

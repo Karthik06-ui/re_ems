@@ -45,6 +45,10 @@ export default function PublicEventPage() {
       navigate(`/portal/login?next=/events/${id}`);
       return;
     }
+    if (event?.registration_mode === 'team') {
+      navigate(`/portal/events/${id}`);
+      return;
+    }
     setSubmitting(true);
     const { status, data } = await apiRequest(`/api/v1/events/${id}/register/`, 'POST', {}, true);
     if (status === 201 || status === 202) {
@@ -352,7 +356,27 @@ export default function PublicEventPage() {
             <hr style={{ border: 'none', borderTop: '1px solid var(--gdg-border)', margin: '0 0 20px 0' }} />
 
             {/* Status Feedback Panel */}
-            {isConfirmed && (
+            {/* Status Feedback Panel */}
+            {event.registration_mode === 'team' && event.user_status?.type === 'team' && (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                backgroundColor: 'rgba(66, 133, 244, 0.08)',
+                border: '1px solid rgba(66, 133, 244, 0.25)',
+                borderRadius: '8px',
+                padding: '12px 16px',
+                fontSize: '13px',
+                marginBottom: '16px'
+              }}>
+                <div style={{ fontWeight: 'bold' }}>Team: {event.user_status.team_name}</div>
+                <div style={{ textTransform: 'capitalize', color: 'var(--gdg-blue)', fontWeight: 500 }}>
+                  Status: {event.user_status.status.replace(/_/g, ' ')}
+                </div>
+              </div>
+            )}
+
+            {event.registration_mode !== 'team' && isConfirmed && (
               <div style={{
                 display: 'flex',
                 gap: '8px',
@@ -371,7 +395,7 @@ export default function PublicEventPage() {
               </div>
             )}
 
-            {isWaitlisted && (
+            {event.registration_mode !== 'team' && isWaitlisted && (
               <div style={{
                 display: 'flex',
                 gap: '8px',
@@ -407,6 +431,24 @@ export default function PublicEventPage() {
                 }}
               >
                 Registration Closed
+              </button>
+            ) : event.registration_mode === 'team' ? (
+              <button 
+                onClick={handleRegister}
+                className="btn btn-primary"
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  borderRadius: '6px',
+                  backgroundColor: 'var(--gdg-blue)',
+                  color: '#FFF',
+                  border: 'none',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                {event.user_status?.type === 'team' ? 'Go to Team Workspace' : 'Register Team'}
               </button>
             ) : isConfirmed || isWaitlisted ? (
               <button 

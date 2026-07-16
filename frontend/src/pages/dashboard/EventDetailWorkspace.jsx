@@ -19,21 +19,7 @@ import {
   EventStatusBadge
 } from '../../components/DashboardComponents';
 
-// Mock Registration Trend Data
-const registrationTrends = [
-  { name: 'Day 1', count: 10 },
-  { name: 'Day 2', count: 32 },
-  { name: 'Day 3', count: 78 },
-  { name: 'Day 4', count: 145 },
-  { name: 'Day 5', count: 182 }
-];
-
-const registrationSourceData = [
-  { name: 'Outreach', count: 95 },
-  { name: 'Sponsor Referrals', count: 42 },
-  { name: 'Slack/Discord', count: 30 },
-  { name: 'Organic', count: 15 }
-];
+// Analytics data is now calculated dynamically from actual registrations
 
 export default function EventDetailWorkspace() {
   const { id, tab = 'overview' } = useParams();
@@ -76,6 +62,11 @@ export default function EventDetailWorkspace() {
   const [typeVal, setTypeVal] = useState('physical');
   const [categoryVal, setCategoryVal] = useState('workshop');
   const [coverImage, setCoverImage] = useState('');
+  const [registrationMode, setRegistrationMode] = useState('individual');
+  const [minTeamSize, setMinTeamSize] = useState('1');
+  const [maxTeamSize, setMaxTeamSize] = useState('1');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
   const [saving, setSaving] = useState(false);
 
   // Communications announcements list
@@ -94,6 +85,41 @@ export default function EventDetailWorkspace() {
   const [selectedSponsorId, setSelectedSponsorId] = useState('');
   const [sponsorTierOverride, setSponsorTierOverride] = useState('gold');
   const [addingSponsor, setAddingSponsor] = useState(false);
+
+  // Analytics Derived Data
+  const registrationTrends = React.useMemo(() => {
+    if (!registrations || registrations.length === 0) return [];
+    
+    const dateCounts = {};
+    registrations.forEach(reg => {
+      const d = reg.date;
+      dateCounts[d] = (dateCounts[d] || 0) + 1;
+    });
+
+    const sortedDates = Object.keys(dateCounts).sort((a, b) => new Date(a) - new Date(b));
+    
+    let cumulative = 0;
+    return sortedDates.map(date => {
+      cumulative += dateCounts[date];
+      const shortDate = new Date(date).toLocaleDateString([], { month: 'short', day: 'numeric' });
+      return {
+        name: shortDate,
+        count: cumulative
+      };
+    });
+  }, [registrations]);
+
+  const registrationSourceData = React.useMemo(() => {
+    if (!registrations || registrations.length === 0) return [];
+
+    const typeCounts = {};
+    registrations.forEach(reg => {
+      const type = reg.ticket_type || 'General Admission';
+      typeCounts[type] = (typeCounts[type] || 0) + 1;
+    });
+
+    return Object.entries(typeCounts).map(([name, count]) => ({ name, count }));
+  }, [registrations]);
 
   const handleConfirmSendAnnouncement = async () => {
     if (!selectedAnn) return;
@@ -121,6 +147,17 @@ export default function EventDetailWorkspace() {
       setTypeVal(data.type || 'physical');
       setCategoryVal(data.category || 'workshop');
       setCoverImage(data.cover_image || '');
+      setRegistrationMode(data.registration_mode || 'individual');
+      setMinTeamSize(data.min_team_size || 1);
+      setMaxTeamSize(data.max_team_size || 1);
+      if (data.start_time) {
+        const d = new Date(data.start_time);
+        setStartTime(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+      }
+      if (data.end_time) {
+        const d = new Date(data.end_time);
+        setEndTime(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
+      }
       setSpeakers(data.speakers || []);
       setSessions(data.sessions || []);
       setSurveyQuestions(data.survey_questions || []);
@@ -198,7 +235,12 @@ export default function EventDetailWorkspace() {
       status: statusVal,
       type: typeVal,
       category: categoryVal,
-      cover_image: coverImage
+      cover_image: coverImage,
+      start_time: startTime ? new Date(startTime).toISOString() : undefined,
+      end_time: endTime ? new Date(endTime).toISOString() : undefined,
+      registration_mode: registrationMode,
+      min_team_size: registrationMode === 'team' ? parseInt(minTeamSize) : 1,
+      max_team_size: registrationMode === 'team' ? parseInt(maxTeamSize) : 1
     }, true);
 
     if (status === 200) {
@@ -549,6 +591,16 @@ export default function EventDetailWorkspace() {
               </div>
               <div className="form-grid">
                 <div className="form-group">
+                  <label>Start Date & Time</label>
+                  <input type="datetime-local" value={startTime} onChange={e => setStartTime(e.target.value)} required />
+                </div>
+                <div className="form-group">
+                  <label>End Date & Time</label>
+                  <input type="datetime-local" value={endTime} onChange={e => setEndTime(e.target.value)} required />
+                </div>
+              </div>
+              <div className="form-grid">
+                <div className="form-group">
                   <label>Event Mode (Online/Offline)</label>
                   <select value={typeVal} onChange={e => setTypeVal(e.target.value)}>
                     <option value="physical">Offline (Physical)</option>
@@ -587,6 +639,28 @@ export default function EventDetailWorkspace() {
                   value={coverImage} 
                   onChange={e => setCoverImage(e.target.value)} 
                 />
+              </div>
+
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>Registration Mode</label>
+                  <select value={registrationMode} onChange={e => setRegistrationMode(e.target.value)}>
+                    <option value="individual">Individual Event</option>
+                    <option value="team">Team Event</option>
+                  </select>
+                </div>
+                {registrationMode === 'team' && (
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <div className="form-group" style={{ flexGrow: 1 }}>
+                      <label>Min Team Size</label>
+                      <input type="number" min="1" value={minTeamSize} onChange={e => setMinTeamSize(e.target.value)} required />
+                    </div>
+                    <div className="form-group" style={{ flexGrow: 1 }}>
+                      <label>Max Team Size</label>
+                      <input type="number" min="1" value={maxTeamSize} onChange={e => setMaxTeamSize(e.target.value)} required />
+                    </div>
+                  </div>
+                )}
               </div>
               
               <button className="btn btn-primary" type="submit" style={{ alignSelf: 'flex-start' }} disabled={saving}>
@@ -1005,8 +1079,8 @@ export default function EventDetailWorkspace() {
                 </div>
               </DashboardCard>
 
-              {/* Registration Source */}
-              <DashboardCard title="Registration referral source">
+              {/* Registration Ticket Types */}
+              <DashboardCard title="Registration Ticket Types">
                 <div style={{ height: '240px' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={registrationSourceData}>

@@ -23,6 +23,14 @@ export default function AnalyticsDashboard() {
     rate: 0
   });
 
+  const [teamMetrics, setTeamMetrics] = useState({
+    totalTeams: 0,
+    registeredTeams: 0,
+    averageTeamSize: 0,
+    pendingInvitations: 0,
+    acceptedInvitations: 0
+  });
+
   const [registrationsOverTime, setRegistrationsOverTime] = useState([]);
   const [capacityUtilization, setCapacityUtilization] = useState([]);
   const [memberGrowth, setMemberGrowth] = useState([]);
@@ -45,6 +53,13 @@ export default function AnalyticsDashboard() {
         setCapacityUtilization(data.capacity_utilization || []);
         setMemberGrowth(data.member_growth || []);
         setSponsorEngagement(data.sponsor_engagement || []);
+        setTeamMetrics({
+          totalTeams: data.team_metrics?.total_teams || 0,
+          registeredTeams: data.team_metrics?.registered_teams || 0,
+          averageTeamSize: data.team_metrics?.average_team_size || 0,
+          pendingInvitations: data.team_metrics?.pending_invitations || 0,
+          acceptedInvitations: data.team_metrics?.accepted_invitations || 0
+        });
       }
     };
     fetchOverviewData();
@@ -103,11 +118,22 @@ export default function AnalyticsDashboard() {
               </div>
 
               {/* STATS GRID */}
-              <div className="gdg-stat-grid">
+              <div className="gdg-stat-grid" style={{ marginBottom: '24px' }}>
                 <StatCard value={stats.events} label="Total Events" emoji="🎤" />
                 <StatCard value={stats.registrations} label="Total Registrations" emoji="🎫" />
                 <StatCard value={stats.members} label="Total Members" emoji="👥" />
                 <StatCard value={stats.rate + "%"} label="Attendance Rate" emoji="📈" />
+              </div>
+
+              {/* TEAM METRICS */}
+              <h3 style={{ fontSize: '18px', fontWeight: 600, margin: '24px 0 16px 0', color: 'var(--gdg-text-primary)' }}>
+                Team Registration Analytics
+              </h3>
+              <div className="gdg-stat-grid">
+                <StatCard value={teamMetrics.totalTeams} label="Total Teams Created" emoji="🛡️" />
+                <StatCard value={teamMetrics.registeredTeams} label="Registered Teams" emoji="✅" />
+                <StatCard value={teamMetrics.averageTeamSize} label="Avg Team Size" emoji="👨‍👦‍👦" />
+                <StatCard value={teamMetrics.pendingInvitations} label="Pending Invitations" emoji="✉️" />
               </div>
             </>
           )}

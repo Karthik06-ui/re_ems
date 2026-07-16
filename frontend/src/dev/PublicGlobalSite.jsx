@@ -192,7 +192,7 @@ export default function PublicGlobalSite() {
                   </div>
 
                   <button
-                    onClick={() => navigate(`/portal/login?event=${ev.id}`)}
+                    onClick={() => navigate(`/portal/login?event=${ev.id}${ev.registration_mode === 'team' ? '&mode=team' : ''}`)}
                     style={{
                       width: '100%',
                       padding: '12px',
@@ -212,7 +212,7 @@ export default function PublicGlobalSite() {
                     onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#248689'}
                     onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#1b2b4b'}
                   >
-                    <span>Register Now</span>
+                    <span>{ev.registration_mode === 'team' ? 'Register Team' : 'Register Now'}</span>
                     <ArrowRight size={14} />
                   </button>
                 </div>

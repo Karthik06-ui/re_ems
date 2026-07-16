@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from events.models import Event
 
 class Sponsor(models.Model):
@@ -13,6 +14,14 @@ class Sponsor(models.Model):
     tier = models.CharField(max_length=50, choices=Tier.choices, default=Tier.BRONZE)
     created_at = models.DateTimeField(auto_now_add=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
+    created_by_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='created_sponsors'
+    )
+    created_by_profile = models.ForeignKey(
+        'authentication.AdminProfile', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='created_sponsors'
+    )
 
     def __str__(self):
         return self.name

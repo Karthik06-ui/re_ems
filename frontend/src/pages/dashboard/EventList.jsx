@@ -32,6 +32,20 @@ export default function EventList() {
   const [newType, setNewType] = useState('physical');
   const [newCategory, setNewCategory] = useState('workshop');
   const [newCoverImage, setNewCoverImage] = useState('');
+  const [newRegistrationMode, setNewRegistrationMode] = useState('individual');
+  const [newMinTeamSize, setNewMinTeamSize] = useState('1');
+  const [newMaxTeamSize, setNewMaxTeamSize] = useState('1');
+
+  const defaultStart = new Date();
+  defaultStart.setDate(defaultStart.getDate() + 7);
+  const tzOffset = defaultStart.getTimezoneOffset() * 60000;
+  const initialStart = new Date(defaultStart.getTime() - tzOffset).toISOString().slice(0, 16);
+  
+  const defaultEnd = new Date(defaultStart.getTime() + 3 * 60 * 60 * 1000);
+  const initialEnd = new Date(defaultEnd.getTime() - tzOffset).toISOString().slice(0, 16);
+
+  const [newStartTime, setNewStartTime] = useState(initialStart);
+  const [newEndTime, setNewEndTime] = useState(initialEnd);
 
   const fetchEventsData = async () => {
     setLoading(true);
@@ -48,9 +62,8 @@ export default function EventList() {
 
   const handleCreateDraft = async (e) => {
     e.preventDefault();
-    const start_time = new Date();
-    start_time.setDate(start_time.getDate() + 7);
-    const end_time = new Date(start_time.getTime() + 3 * 60 * 60 * 1000);
+    const start_time = new Date(newStartTime);
+    const end_time = new Date(newEndTime);
 
     const { status, data } = await apiRequest('/api/v1/events/', 'POST', {
       title: newTitle,
@@ -63,7 +76,10 @@ export default function EventList() {
       start_time: start_time.toISOString(),
       end_time: end_time.toISOString(),
       timezone: 'GMT+5:30',
-      status: 'draft' // Seeding starts at draft state
+      status: 'draft', // Seeding starts at draft state
+      registration_mode: newRegistrationMode,
+      min_team_size: newRegistrationMode === 'team' ? parseInt(newMinTeamSize) : 1,
+      max_team_size: newRegistrationMode === 'team' ? parseInt(newMaxTeamSize) : 1
     }, true);
 
     if (status === 201) {
@@ -188,6 +204,16 @@ export default function EventList() {
             </div>
             <div className="form-grid">
               <div className="form-group">
+                <label>Start Date & Time</label>
+                <input type="datetime-local" value={newStartTime} onChange={e => setNewStartTime(e.target.value)} required />
+              </div>
+              <div className="form-group">
+                <label>End Date & Time</label>
+                <input type="datetime-local" value={newEndTime} onChange={e => setNewEndTime(e.target.value)} required />
+              </div>
+            </div>
+            <div className="form-grid">
+              <div className="form-group">
                 <label>Event Mode (Online/Offline)</label>
                 <select value={newType} onChange={e => setNewType(e.target.value)}>
                   <option value="physical">Offline (Physical)</option>
@@ -221,6 +247,27 @@ export default function EventList() {
                   onChange={e => setNewCoverImage(e.target.value)} 
                 />
               </div>
+            </div>
+            <div className="form-grid">
+              <div className="form-group">
+                <label>Registration Mode</label>
+                <select value={newRegistrationMode} onChange={e => setNewRegistrationMode(e.target.value)}>
+                  <option value="individual">Individual Event</option>
+                  <option value="team">Team Event</option>
+                </select>
+              </div>
+              {newRegistrationMode === 'team' && (
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <div className="form-group" style={{ flexGrow: 1 }}>
+                    <label>Min Team Size</label>
+                    <input type="number" min="1" value={newMinTeamSize} onChange={e => setNewMinTeamSize(e.target.value)} required />
+                  </div>
+                  <div className="form-group" style={{ flexGrow: 1 }}>
+                    <label>Max Team Size</label>
+                    <input type="number" min="1" value={newMaxTeamSize} onChange={e => setNewMaxTeamSize(e.target.value)} required />
+                  </div>
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
               <button className="btn btn-primary" type="submit" style={{ width: '100%' }}>Create Event Draft</button>

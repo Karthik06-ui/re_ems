@@ -1,6 +1,9 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
-from .models import Event, Registration, Waitlist, Speaker, Session, SurveyQuestion, Announcement, ChapterSetting
+from .models import (
+    Event, Registration, Waitlist, Speaker, Session, SurveyQuestion, Announcement, ChapterSetting,
+    Team, TeamMember, TeamInvitation
+)
 from authentication.serializers import UserSerializer
 
 User = get_user_model()
@@ -50,6 +53,8 @@ class EventSerializer(serializers.ModelSerializer):
     registration_count = serializers.SerializerMethodField()
     waitlist_count = serializers.SerializerMethodField()
     user_status = serializers.SerializerMethodField()
+    created_by_user_email = serializers.SerializerMethodField()
+    created_by_profile_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Event
@@ -58,14 +63,26 @@ class EventSerializer(serializers.ModelSerializer):
             'start_time', 'end_time', 'timezone', 'venue', 'capacity',
             'cover_image', 'created_at', 'speakers', 'sessions',
             'survey_questions', 'announcements',
-            'registration_count', 'waitlist_count', 'user_status'
+            'registration_count', 'waitlist_count', 'user_status',
+            'registration_mode', 'min_team_size', 'max_team_size',
+            'created_by_user_email', 'created_by_profile_name'
         )
-        read_only_fields = ('id', 'created_at')
+        read_only_fields = ('id', 'created_at', 'created_by_user_email', 'created_by_profile_name')
+
+    def get_created_by_user_email(self, obj):
+        return obj.created_by_user.email if obj.created_by_user else None
+
+    def get_created_by_profile_name(self, obj):
+        return obj.created_by_profile.name if obj.created_by_profile else None
 
     def get_registration_count(self, obj):
+        if obj.registration_mode == 'team':
+            return obj.teams.filter(status=Team.RegistrationStatus.REGISTERED).count()
         return obj.registrations.filter(status=Registration.Status.CONFIRMED).count()
 
     def get_waitlist_count(self, obj):
+        if obj.registration_mode == 'team':
+            return obj.teams.filter(status=Team.RegistrationStatus.WAITLISTED).count()
         return obj.waitlists.count()
 
     def get_user_status(self, obj):
@@ -73,6 +90,33 @@ class EventSerializer(serializers.ModelSerializer):
         if not request or not request.user or not request.user.is_authenticated:
             return None
         
+        if obj.registration_mode == 'team':
+            # Check if the user is in a team for this event
+            membership = TeamMember.objects.filter(team__event=obj, user=request.user).first()
+            if membership:
+                team = membership.team
+                return {
+                    'type': 'team',
+                    'team_id': team.id,
+                    'team_name': team.name,
+                    'role': membership.role,
+                    'status': team.status,
+                }
+            # Check if they have a pending invitation to a team for this event
+            invitation = TeamInvitation.objects.filter(
+                team__event=obj, 
+                email=request.user.email.lower(), 
+                status=TeamInvitation.InvitationStatus.PENDING
+            ).first()
+            if invitation:
+                return {
+                    'type': 'invited',
+                    'team_id': invitation.team.id,
+                    'team_name': invitation.team.name,
+                    'invitation_id': invitation.id
+                }
+            return None
+
         reg = obj.registrations.filter(user=request.user).exclude(status=Registration.Status.CANCELLED).first()
         if reg:
             return {
@@ -100,10 +144,11 @@ class EventSerializer(serializers.ModelSerializer):
 class RegistrationSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
     event_title = serializers.CharField(source='event.title', read_only=True)
+    team_name = serializers.CharField(source='team.name', read_only=True)
 
     class Meta:
         model = Registration
-        fields = ('id', 'event', 'event_title', 'user', 'status', 'ticket_type', 'registered_at', 'checked_in_at')
+        fields = ('id', 'event', 'event_title', 'user', 'status', 'ticket_type', 'registered_at', 'checked_in_at', 'team', 'team_name')
         read_only_fields = ('id', 'user', 'registered_at', 'checked_in_at')
 
 class WaitlistSerializer(serializers.ModelSerializer):
@@ -119,4 +164,34 @@ class ChapterSettingSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChapterSetting
         fields = ('slug', 'name', 'location', 'description', 'logo', 'banner', 'theme_color', 'ga_tracking_id')
+
+
+class TeamMemberSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+
+    class Meta:
+        model = TeamMember
+        fields = ('id', 'team', 'user', 'role', 'joined_at')
+
+
+class TeamInvitationSerializer(serializers.ModelSerializer):
+    invited_by = UserSerializer(read_only=True)
+    team_name = serializers.CharField(source='team.name', read_only=True)
+
+    class Meta:
+        model = TeamInvitation
+        fields = ('id', 'team', 'team_name', 'email', 'invited_by', 'status', 'token', 'created_at')
+
+
+class TeamSerializer(serializers.ModelSerializer):
+    members = TeamMemberSerializer(many=True, read_only=True)
+    invitations = TeamInvitationSerializer(many=True, read_only=True)
+    leader = UserSerializer(read_only=True)
+    event_title = serializers.CharField(source='event.title', read_only=True)
+
+    class Meta:
+        model = Team
+        fields = ('id', 'event', 'event_title', 'name', 'description', 'leader', 'status', 'members', 'invitations', 'created_at')
+        read_only_fields = ('id', 'status', 'created_at')
+
 

@@ -93,13 +93,15 @@ class EventRegistrationTests(APITestCase):
 
 class ChapterSettingTests(APITestCase):
     def setUp(self):
+        from django.conf import settings
+        # Admin user must match ADMIN_EMAIL for is_admin to return True
         self.admin_user = User.objects.create_user(
-            email='admin@test.com', name='Admin User', password='password123',
-            role=User.Role.ADMIN, roll_number='ADM01', department='ADMIN', phone_number='1111111111'
+            email=settings.ADMIN_EMAIL, name='Admin User', password='password123',
+            roll_number='ADM01', department='ADMIN', phone_number='1111111111'
         )
         self.member_user = User.objects.create_user(
-            email='member@test.com', name='Member User', password='password123',
-            role=User.Role.PARTICIPANT, roll_number='MEM01', department='CSE', phone_number='2222222222'
+            email='member_chapter@test.com', name='Member User', password='password123',
+            roll_number='MEM01', department='CSE', phone_number='2222222222'
         )
         self.url = reverse('chapter-detail', kwargs={'slug': 'gdg-workspace'})
 
@@ -120,4 +122,82 @@ class ChapterSettingTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['name'], 'Updated GDG Chapter')
         self.assertEqual(response.data['location'], 'New Coimbatore')
+
+
+from .models import Team, TeamMember, TeamInvitation
+
+class TeamRegistrationTests(APITestCase):
+    def setUp(self):
+        self.leader = User.objects.create_user(
+            email='leader@test.com', name='Leader', password='password123',
+            roll_number='L101', department='CSE', phone_number='1112223333'
+        )
+        self.member = User.objects.create_user(
+            email='member@test.com', name='Member', password='password123',
+            roll_number='M102', department='ECE', phone_number='1112223334'
+        )
+        self.team_event = Event.objects.create(
+            title='Hackathon 2026',
+            description='Hackathon',
+            type=Event.EventType.PHYSICAL,
+            status=Event.EventStatus.PUBLISHED,
+            start_time=timezone.now() + timedelta(days=2),
+            end_time=timezone.now() + timedelta(days=2, hours=10),
+            capacity=1,
+            registration_mode='team',
+            min_team_size=2,
+            max_team_size=3
+        )
+        self.create_team_url = reverse('team-list')
+
+    def test_direct_registration_blocked(self):
+        """Direct individual registration is blocked for team events."""
+        self.client.force_authenticate(user=self.leader)
+        url = reverse('event-register', kwargs={'pk': self.team_event.pk})
+        response = self.client.post(url)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("This is a team event", response.data['detail'])
+
+    def test_team_registration_workflow(self):
+        """Full workflow: create team -> invite -> accept -> register team."""
+        # 1. Create team
+        self.client.force_authenticate(user=self.leader)
+        response = self.client.post(self.create_team_url, {
+            'event': self.team_event.id,
+            'name': 'Team Devs',
+            'description': 'Description'
+        })
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        team_id = response.data['id']
+        team = Team.objects.get(id=team_id)
+        self.assertEqual(team.leader, self.leader)
+
+        # 2. Invite member
+        invite_url = reverse('team-invite', kwargs={'pk': team.pk})
+        response = self.client.post(invite_url, {'email': self.member.email})
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        
+        # 3. Respond to invitation
+        self.client.force_authenticate(user=self.member)
+        invitations_url = reverse('invitation-list')
+        response = self.client.get(invitations_url)
+        self.assertEqual(len(response.data), 1)
+        invite_id = response.data[0]['id']
+
+        respond_url = reverse('invitation-respond', kwargs={'pk': invite_id})
+        response = self.client.post(respond_url, {'response': 'accept'})
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        self.assertEqual(TeamMember.objects.filter(team=team).count(), 2)
+
+        # 4. Register team
+        self.client.force_authenticate(user=self.leader)
+        register_team_url = reverse('team-register-team', kwargs={'pk': team.pk})
+        response = self.client.post(register_team_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        team.refresh_from_db()
+        self.assertEqual(team.status, Team.RegistrationStatus.REGISTERED)
+        self.assertEqual(Registration.objects.filter(event=self.team_event, status=Registration.Status.CONFIRMED).count(), 2)
+
 

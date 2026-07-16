@@ -28,11 +28,6 @@ export default function SettingsWorkspace() {
   const [bannerUrl, setBannerUrl] = useState('');
   const [themeColor, setThemeColor] = useState('#1A73E8');
 
-  // Team Tab States
-  const [teamMembers, setTeamMembers] = useState([]);
-  const [newTeamEmail, setNewTeamEmail] = useState('');
-  const [newTeamRole, setNewTeamRole] = useState('Admin');
-
   // Tracking Tab States
   const [gaTrackingId, setGaTrackingId] = useState('G-XXXXXXXXXX');
 
@@ -54,29 +49,13 @@ export default function SettingsWorkspace() {
     setLoading(false);
   };
 
-  const fetchTeamMembers = async () => {
-    const { status, data } = await apiRequest('/api/v1/auth/users/', 'GET', null, true);
-    if (status === 200) {
-      setTeamMembers(data.map(item => ({
-        id: item.id,
-        name: item.user.name || item.user.email,
-        email: item.user.email,
-        role: item.role === 'admin' ? 'Admin' : 'Participant',
-        canPublish: item.role === 'admin',
-        canEmail: item.role === 'admin'
-      })));
-    }
-  };
+
 
   useEffect(() => {
     fetchChapterSettings();
   }, []);
 
-  useEffect(() => {
-    if (tab === 'team') {
-      fetchTeamMembers();
-    }
-  }, [tab]);
+
 
   const handleSaveSettings = async () => {
     setSaving(true);
@@ -100,57 +79,9 @@ export default function SettingsWorkspace() {
     setSaving(false);
   };
 
-  const togglePermission = async (memberId, permissionType) => {
-    const member = teamMembers.find(m => m.id === memberId);
-    if (!member) return;
 
-    const isCurrentlyPrivileged = member.role === 'Admin';
-    const newRole = isCurrentlyPrivileged ? 'participant' : 'admin';
 
-    const { status, data } = await apiRequest('/api/v1/auth/users/', 'POST', {
-      user_email: member.email,
-      role: newRole
-    }, true);
-
-    if (status === 200 || status === 201) {
-      fetchTeamMembers();
-    } else {
-      alert(data?.detail || 'Failed to update member permission.');
-    }
-  };
-
-  const handleAddTeamMember = async (e) => {
-    e.preventDefault();
-    if (!newTeamEmail) return;
-    const backendRole = newTeamRole === 'Admin' ? 'admin' : 'participant';
-
-    const { status, data } = await apiRequest('/api/v1/auth/users/', 'POST', {
-      user_email: newTeamEmail,
-      role: backendRole
-    }, true);
-
-    if (status === 201 || status === 200) {
-      setNewTeamEmail('');
-      fetchTeamMembers();
-    } else {
-      alert(data.user_email ? data.user_email[0] : 'Failed to invite team member. Please verify user email is registered.');
-    }
-  };
-
-  const handleRemoveTeamMember = async (roleId) => {
-    if (!window.confirm("Remove this team member role?")) return;
-    const { status, data } = await apiRequest('/api/v1/auth/users/', 'DELETE', {
-      role_id: roleId
-    }, true);
-
-    if (status === 204 || status === 200) {
-      fetchTeamMembers();
-    } else {
-      alert(data?.detail || 'Failed to remove team member.');
-    }
-  };
-
-  const settingsTabs = ['overview', 'branding', 'team', 'tracking'];
+  const settingsTabs = ['overview', 'branding', 'tracking'];
 
   if (loading) {
     return (
@@ -314,69 +245,7 @@ export default function SettingsWorkspace() {
           </div>
         )}
 
-        {/* TEAM TAB */}
-        {tab === 'team' && (
-          <div className="gdg-grid-2-1">
-            <DashboardCard title="Team Members Permissions Dashboard">
-              <div style={{ border: '1px solid var(--gdg-border)', borderRadius: '8px', overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
-                  <thead>
-                    <tr style={{ backgroundColor: '#F1F3F4', borderBottom: '1px solid var(--gdg-border)', fontWeight: 'bold', color: 'var(--gdg-text-secondary)' }}>
-                      <th style={{ padding: '10px 16px' }}>MEMBER DETAILS</th>
-                      <th style={{ padding: '10px 16px' }}>PUBLISH EVENTS</th>
-                      <th style={{ padding: '10px 16px' }}>SEND OUTREACH</th>
-                      <th style={{ padding: '10px 16px' }}>REMOVE</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {teamMembers.map(m => (
-                      <tr key={m.id} style={{ borderBottom: '1px solid var(--gdg-border)' }}>
-                        <td style={{ padding: '12px 16px' }}>
-                          <strong style={{ display: 'block' }}>{m.name}</strong>
-                          <span style={{ fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>{m.email} | {m.role}</span>
-                        </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                          <input 
-                            type="checkbox" 
-                            checked={m.canPublish} 
-                            onChange={() => togglePermission(m.id, 'canPublish')} 
-                          />
-                        </td>
-                        <td style={{ padding: '12px 16px', textAlign: 'center' }}>
-                          <input 
-                            type="checkbox" 
-                            checked={m.canEmail} 
-                            onChange={() => togglePermission(m.id, 'canEmail')} 
-                          />
-                        </td>
-                        <td style={{ padding: '12px 16px' }}>
-                          <button className="gdg-share-icon-btn" style={{ color: 'var(--gdg-error)' }} onClick={() => handleRemoveTeamMember(m.id)}><Trash2 size={12} /></button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </DashboardCard>
 
-            <DashboardCard title="Add Team Member">
-              <form onSubmit={handleAddTeamMember} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div className="form-group">
-                  <label>Email Address</label>
-                  <input type="email" value={newTeamEmail} onChange={e => setNewTeamEmail(e.target.value)} required placeholder="user@gmail.com" />
-                </div>
-                <div className="form-group">
-                  <label>Role</label>
-                  <select value={newTeamRole} onChange={e => setNewTeamRole(e.target.value)}>
-                    <option value="Admin">Admin</option>
-                    <option value="Participant">Participant</option>
-                  </select>
-                </div>
-                <button className="btn btn-primary" type="submit">Invite Member</button>
-              </form>
-            </DashboardCard>
-          </div>
-        )}
 
         {/* TRACKING TAB */}
         {tab === 'tracking' && (

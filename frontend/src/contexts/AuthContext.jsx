@@ -14,6 +14,14 @@ export function AuthProvider({ children }) {
       return null;
     }
   });
+  const [adminProfile, setAdminProfile] = useState(() => {
+    try {
+      const profile = localStorage.getItem('admin_profile');
+      return profile ? JSON.parse(profile) : null;
+    } catch {
+      return null;
+    }
+  });
 
   const apiRequest = async (urlPath, method = 'GET', body = null, authRequired = true) => {
     const headers = { 'Content-Type': 'application/json' };
@@ -68,7 +76,6 @@ export function AuthProvider({ children }) {
   };
 
   const login = async (email, password) => {
-
     const { status, data } = await apiRequest('/api/v1/auth/token/', 'POST', { email, password }, false);
     if (status === 200) {
       setAccessToken(data.access);
@@ -77,7 +84,12 @@ export function AuthProvider({ children }) {
       localStorage.setItem('access_token', data.access);
       localStorage.setItem('refresh_token', data.refresh);
       localStorage.setItem('user', JSON.stringify(data.user));
-      return { success: true };
+      
+      // Clear any old admin profile from previous sessions
+      setAdminProfile(null);
+      localStorage.removeItem('admin_profile');
+      
+      return { success: true, user: data.user };
     }
 
     return { success: false, error: data.detail || 'Authentication failed' };
@@ -92,47 +104,51 @@ export function AuthProvider({ children }) {
       localStorage.setItem('access_token', data.access);
       localStorage.setItem('refresh_token', data.refresh);
       localStorage.setItem('user', JSON.stringify(data.user));
-      return { success: true };
+      
+      setAdminProfile(null);
+      localStorage.removeItem('admin_profile');
+      
+      return { success: true, user: data.user };
     }
     return { success: false, error: data.email ? data.email[0] : 'Registration failed' };
   };
 
-  const registerAdmin = async (name, email, password, adminKey) => {
-    const { status, data } = await apiRequest('/api/v1/auth/register-admin/', 'POST', { 
-      name, 
-      email, 
-      password,
-      admin_key: adminKey
-    }, false);
-    if (status === 201) {
+  const selectProfile = async (profileId) => {
+    const { status, data } = await apiRequest('/api/v1/auth/profiles/select/', 'POST', { profile_id: profileId }, true);
+    if (status === 200) {
       setAccessToken(data.access);
       setRefreshToken(data.refresh);
-      setCurrentUser(data.user);
+      setAdminProfile(data.profile);
       localStorage.setItem('access_token', data.access);
       localStorage.setItem('refresh_token', data.refresh);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('admin_profile', JSON.stringify(data.profile));
       return { success: true };
     }
-    const errorMsg = data.admin_key ? data.admin_key[0] : (data.email ? data.email[0] : 'Admin registration failed');
-    return { success: false, error: errorMsg };
+    return { success: false, error: data.detail || 'Profile selection failed' };
   };
 
   const logout = () => {
     setAccessToken('');
     setRefreshToken('');
     setCurrentUser(null);
+    setAdminProfile(null);
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
     localStorage.removeItem('user');
+    localStorage.removeItem('admin_profile');
   };
 
   const fetchProfile = async () => {
     if (!accessToken) return;
-    if (accessToken === 'dev-jwt-token') return; // Bypass call if using dev session
     const { status, data } = await apiRequest('/api/v1/auth/me/', 'GET', null, true);
     if (status === 200) {
       setCurrentUser(data);
       localStorage.setItem('user', JSON.stringify(data));
+      
+      if (data.active_profile) {
+        setAdminProfile(data.active_profile);
+        localStorage.setItem('admin_profile', JSON.stringify(data.active_profile));
+      }
     }
   };
 
@@ -142,11 +158,14 @@ export function AuthProvider({ children }) {
       token: accessToken,
       login,
       register,
-      registerAdmin,
       logout,
       fetchProfile,
       apiRequest,
       isAuthenticated: !!accessToken,
+      isAdmin: currentUser?.is_admin || false,
+      adminProfile,
+      selectProfile,
+      profileSelected: !!adminProfile,
     }}>
       {children}
     </AuthContext.Provider>

@@ -19,6 +19,20 @@ export default function ParticipantDashboard() {
     setLoading(false);
   };
 
+  const handleRespondInvitation = async (invitationId, responseAction) => {
+    setLoading(true);
+    const res = await apiRequest(`/api/v1/events/invitations/${invitationId}/respond/`, 'POST', {
+      response: responseAction
+    }, true);
+    if (res.status === 200) {
+      alert(`Invitation ${responseAction === 'accept' ? 'accepted' : 'declined'} successfully.`);
+      fetchDashboardData();
+    } else {
+      alert(res.data?.detail || "Failed to respond to invitation.");
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchDashboardData();
   }, []);
@@ -64,6 +78,76 @@ export default function ParticipantDashboard() {
           </div>
         </div>
       </div>
+
+      {/* Invitation Center */}
+      {data?.invitations && data.invitations.length > 0 && (
+        <div className="gdg-card" style={{
+          backgroundColor: '#FFF',
+          border: '1px solid #FBBC05',
+          borderRadius: '12px',
+          padding: '24px',
+          marginBottom: '32px',
+          boxShadow: 'var(--shadow)'
+        }}>
+          <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: 600, color: '#B06000', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            🔔 Pending Team Invitations
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {data.invitations.map(invite => (
+              <div key={invite.id} style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '12px 16px',
+                backgroundColor: '#FFFDF6',
+                border: '1px solid rgba(251, 188, 5, 0.25)',
+                borderRadius: '8px'
+              }}>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: 500 }}>
+                    Invitation to join <strong>{invite.team_name}</strong>
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--gdg-text-secondary)', marginTop: '2px' }}>
+                    Invited by {invite.invited_by.name} ({invite.invited_by.email})
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    onClick={() => handleRespondInvitation(invite.id, 'accept')}
+                    style={{
+                      backgroundColor: 'var(--gdg-blue)',
+                      color: '#FFF',
+                      border: 'none',
+                      padding: '6px 16px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Accept
+                  </button>
+                  <button
+                    onClick={() => handleRespondInvitation(invite.id, 'decline')}
+                    style={{
+                      backgroundColor: '#FFF',
+                      border: '1px solid var(--gdg-border)',
+                      color: 'var(--gdg-text-secondary)',
+                      padding: '6px 16px',
+                      borderRadius: '4px',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Tabs Switcher Section */}
       <div style={{

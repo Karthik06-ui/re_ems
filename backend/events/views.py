@@ -7,12 +7,17 @@ from django.utils import timezone
 from django.shortcuts import get_object_or_404
 
 from rest_framework.views import APIView
-from .models import Event, Registration, Waitlist, Speaker, Session, SurveyQuestion, Announcement, ChapterSetting
+from .models import (
+    Event, Registration, Waitlist, Speaker, Session, SurveyQuestion, Announcement, ChapterSetting,
+    Team, TeamMember, TeamInvitation
+)
 from .serializers import (
     EventSerializer, RegistrationSerializer, WaitlistSerializer, SpeakerSerializer,
-    SessionSerializer, SurveyQuestionSerializer, AnnouncementSerializer, ChapterSettingSerializer
+    SessionSerializer, SurveyQuestionSerializer, AnnouncementSerializer, ChapterSettingSerializer,
+    TeamSerializer, TeamMemberSerializer, TeamInvitationSerializer
 )
 from authentication.models import User
+from authentication.audit import log_admin_action
 from communication.models import EmailCampaign
 from communication.services import EmailService
 
@@ -27,18 +32,29 @@ class EventViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        # Public users can only see published events
+        # Public users can only see published or registration open events
         user = self.request.user
         if not user or not user.is_authenticated:
-            queryset = queryset.filter(status=Event.EventStatus.PUBLISHED)
+            queryset = queryset.filter(status__in=[Event.EventStatus.PUBLISHED, Event.EventStatus.REGISTRATION_OPEN])
         return queryset
 
     def perform_destroy(self, instance):
         instance.deleted_at = timezone.now()
         instance.save()
+        log_admin_action(
+            self.request, 'delete', 'Event',
+            entity_id=instance.id, entity_label=instance.title
+        )
 
     def perform_create(self, serializer):
-        event = serializer.save()
+        event = serializer.save(
+            created_by_user=self.request.user,
+            created_by_profile=getattr(self.request, 'admin_profile', None)
+        )
+        log_admin_action(
+            self.request, 'create', 'Event',
+            entity_id=event.id, entity_label=event.title
+        )
         self.handle_event_draft_logic(event)
 
     def perform_update(self, serializer):
@@ -58,6 +74,20 @@ class EventViewSet(viewsets.ModelViewSet):
             event.end_time != old_end
         )
         status_changed = event.status != old_status
+
+        changes = {}
+        if event.title != old_title:
+            changes['title'] = {'before': old_title, 'after': event.title}
+        if event.venue != old_venue:
+            changes['venue'] = {'before': old_venue, 'after': event.venue}
+        if event.status != old_status:
+            changes['status'] = {'before': old_status, 'after': event.status}
+        if changes:
+            log_admin_action(
+                self.request, 'update', 'Event',
+                entity_id=event.id, entity_label=event.title,
+                changes=changes
+            )
 
         self.handle_event_draft_logic(event, details_changed=details_changed, status_changed=status_changed)
 
@@ -121,6 +151,13 @@ class EventViewSet(viewsets.ModelViewSet):
 
         event = self.get_object()
 
+        # Check if team event
+        if event.registration_mode == 'team':
+            return Response(
+                {"detail": "This is a team event. Please register through the Team Registration workflow."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         # Check if already registered
         existing_reg = Registration.objects.filter(event=event, user=user).first()
         if existing_reg and existing_reg.status != Registration.Status.CANCELLED:
@@ -179,6 +216,11 @@ class EventViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def cancel(self, request, pk=None):
         event = self.get_object()
+        if event.registration_mode == 'team':
+            return Response(
+                {"detail": "This is a team event. To cancel registration, please manage it through your Team Workspace."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         user = request.user
 
         # 1. Handle Registration Cancellation
@@ -232,7 +274,7 @@ class EventViewSet(viewsets.ModelViewSet):
     def checkin(self, request, pk=None):
         event = self.get_object()
         # Verify checking user is chapter organizer or admin
-        is_organizer = request.user.role == User.Role.ADMIN
+        is_organizer = request.user.is_admin
 
         if not is_organizer:
             return Response(
@@ -379,7 +421,7 @@ class ChapterSettingDetailView(APIView):
         return Response(serializer.data)
 
     def patch(self, request, slug):
-        if request.user.role != User.Role.ADMIN:
+        if not request.user.is_admin:
             return Response(
                 {"detail": "You do not have permission to modify chapter settings."},
                 status=status.HTTP_403_FORBIDDEN
@@ -389,5 +431,290 @@ class ChapterSettingDetailView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+class TeamViewSet(viewsets.ModelViewSet):
+    queryset = Team.objects.all()
+    serializer_class = TeamSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_admin:
+            return Team.objects.all()
+        from django.db.models import Q
+        return Team.objects.filter(Q(leader=user) | Q(members__user=user)).distinct()
+
+    def perform_create(self, serializer):
+        if not getattr(self.request.user, 'is_profile_completed', False):
+            raise serializers.ValidationError({"detail": "You must complete your profile before creating a team."})
+
+        event_id = self.request.data.get('event')
+        event = get_object_or_404(Event, id=event_id)
+        if event.registration_mode != 'team':
+            raise serializers.ValidationError({"detail": "This event does not support team registration."})
+
+        if TeamMember.objects.filter(team__event=event, user=self.request.user).exists():
+            raise serializers.ValidationError({"detail": "You are already in a team for this event."})
+
+        team = serializer.save(leader=self.request.user, event=event)
+        TeamMember.objects.create(team=team, user=self.request.user, role=TeamMember.Role.LEADER)
+
+    @action(detail=True, methods=['post'])
+    def invite(self, request, pk=None):
+        team = self.get_object()
+        if team.leader != request.user:
+            return Response({"detail": "Only the team leader can invite members."}, status=status.HTTP_403_FORBIDDEN)
+
+        email = request.data.get('email', '').strip().lower()
+        if not email:
+            return Response({"detail": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        current_members = team.members.count()
+        current_invites = team.invitations.filter(status=TeamInvitation.InvitationStatus.PENDING).count()
+        if current_members + current_invites >= team.event.max_team_size:
+            return Response({"detail": "Team has reached maximum capacity (members + pending invites)."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if team.members.filter(user__email=email).exists():
+            return Response({"detail": "User is already a member of this team."}, status=status.HTTP_400_BAD_REQUEST)
+        if team.invitations.filter(email=email, status=TeamInvitation.InvitationStatus.PENDING).exists():
+            return Response({"detail": "Invitation is already pending for this email."}, status=status.HTTP_400_BAD_REQUEST)
+
+        invite = TeamInvitation.objects.create(
+            team=team,
+            email=email,
+            invited_by=request.user
+        )
+        from django.core.mail import send_mail
+        from django.conf import settings
+        try:
+            send_mail(
+                subject=f"Invitation to join team {team.name} for {team.event.title}",
+                message=f"You have been invited to join team {team.name} by {request.user.name} for the event {team.event.title}.\nLog in to your RE-EMS Participant Portal to accept.",
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@communityplatform.com'),
+                recipient_list=[email],
+                fail_silently=False
+            )
+        except Exception:
+            pass
+
+        return Response(TeamInvitationSerializer(invite).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['post'])
+    def cancel_invite(self, request, pk=None):
+        team = self.get_object()
+        if team.leader != request.user:
+            return Response({"detail": "Only the team leader can cancel invitations."}, status=status.HTTP_403_FORBIDDEN)
+
+        email = request.data.get('email', '').strip().lower()
+        invite = team.invitations.filter(email=email, status=TeamInvitation.InvitationStatus.PENDING).first()
+        if not invite:
+            return Response({"detail": "No pending invitation found for this email."}, status=status.HTTP_404_NOT_FOUND)
+
+        invite.delete()
+        return Response({"detail": "Invitation cancelled successfully."}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    @transaction.atomic
+    def remove_member(self, request, pk=None):
+        team = self.get_object()
+        if team.leader != request.user:
+            return Response({"detail": "Only the team leader can remove members."}, status=status.HTTP_403_FORBIDDEN)
+
+        user_id = request.data.get('user_id')
+        member_to_remove = get_object_or_404(User, id=user_id)
+
+        if member_to_remove == team.leader:
+            return Response({"detail": "You cannot remove the leader from the team."}, status=status.HTTP_400_BAD_REQUEST)
+
+        membership = team.members.filter(user=member_to_remove).first()
+        if not membership:
+            return Response({"detail": "User is not a member of this team."}, status=status.HTTP_404_NOT_FOUND)
+
+        membership.delete()
+
+        if team.status == Team.RegistrationStatus.REGISTERED:
+            Registration.objects.filter(event=team.event, user=member_to_remove, team=team).update(status=Registration.Status.CANCELLED)
+            if team.members.count() < team.event.min_team_size:
+                team.status = Team.RegistrationStatus.SUSPENDED
+                team.save()
+
+        return Response({"detail": "Member removed successfully."}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    @transaction.atomic
+    def leave(self, request, pk=None):
+        team = self.get_object()
+        if team.leader == request.user:
+            return Response({"detail": "The leader cannot leave the team. You must transfer leadership or delete the team."}, status=status.HTTP_400_BAD_REQUEST)
+
+        membership = team.members.filter(user=request.user).first()
+        if not membership:
+            return Response({"detail": "You are not a member of this team."}, status=status.HTTP_404_NOT_FOUND)
+
+        membership.delete()
+
+        if team.status == Team.RegistrationStatus.REGISTERED:
+            Registration.objects.filter(event=team.event, user=request.user, team=team).update(status=Registration.Status.CANCELLED)
+            if team.members.count() < team.event.min_team_size:
+                team.status = Team.RegistrationStatus.SUSPENDED
+                team.save()
+
+        return Response({"detail": "You have left the team successfully."}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'])
+    @transaction.atomic
+    def register_team(self, request, pk=None):
+        team = self.get_object()
+        if team.leader != request.user:
+            return Response({"detail": "Only the team leader can register the team."}, status=status.HTTP_403_FORBIDDEN)
+
+        if team.status in [Team.RegistrationStatus.REGISTERED, Team.RegistrationStatus.WAITLISTED]:
+            return Response({"detail": "Team is already registered or waitlisted."}, status=status.HTTP_400_BAD_REQUEST)
+
+        member_count = team.members.count()
+        if member_count < team.event.min_team_size:
+            return Response({"detail": f"Team must have at least {team.event.min_team_size} members to register."}, status=status.HTTP_400_BAD_REQUEST)
+
+        event_locked = Event.objects.select_for_update().get(pk=team.event.pk)
+        registered_teams_count = Team.objects.filter(event=event_locked, status=Team.RegistrationStatus.REGISTERED).count()
+
+        if registered_teams_count < event_locked.capacity:
+            team.status = Team.RegistrationStatus.REGISTERED
+            team.save()
+
+            for member in team.members.all():
+                Registration.objects.update_or_create(
+                    event=event_locked,
+                    user=member.user,
+                    defaults={'status': Registration.Status.CONFIRMED, 'team': team}
+                )
+            
+            from analytics.utils import log_event
+            log_event("team_registration", team.id, request.user, {"team_name": team.name, "event_title": team.event.title})
+
+            return Response(TeamSerializer(team).data, status=status.HTTP_200_OK)
+        else:
+            team.status = Team.RegistrationStatus.WAITLISTED
+            team.save()
+
+            last_position = Waitlist.objects.filter(event=event_locked).values('team').distinct().count()
+            waitlist_pos = last_position + 1
+            for member in team.members.all():
+                Waitlist.objects.create(
+                    event=event_locked,
+                    user=member.user,
+                    position=waitlist_pos,
+                    team=team
+                )
+            
+            return Response(
+                {
+                    "detail": "Event capacity reached. Your team has been added to the waitlist.",
+                    "team": TeamSerializer(team).data
+                },
+                status=status.HTTP_202_ACCEPTED
+            )
+
+    @action(detail=True, methods=['post'])
+    @transaction.atomic
+    def cancel_team(self, request, pk=None):
+        team = self.get_object()
+        if team.leader != request.user and not request.user.is_admin:
+            return Response({"detail": "Only the team leader or an admin can cancel/delete the team."}, status=status.HTTP_403_FORBIDDEN)
+
+        event = team.event
+        old_status = team.status
+
+        if old_status == Team.RegistrationStatus.REGISTERED:
+            Registration.objects.filter(event=event, team=team).update(status=Registration.Status.CANCELLED)
+        elif old_status == Team.RegistrationStatus.WAITLISTED:
+            Waitlist.objects.filter(event=event, team=team).delete()
+            remaining_teams = Team.objects.filter(event=event, status=Team.RegistrationStatus.WAITLISTED).order_by('created_at')
+            for idx, t in enumerate(remaining_teams):
+                Waitlist.objects.filter(event=event, team=t).update(position=idx + 1)
+
+        team.delete()
+
+        if old_status == Team.RegistrationStatus.REGISTERED:
+            next_waitlisted_team = Team.objects.filter(event=event, status=Team.RegistrationStatus.WAITLISTED).order_by('created_at').first()
+            if next_waitlisted_team:
+                next_waitlisted_team.status = Team.RegistrationStatus.REGISTERED
+                next_waitlisted_team.save()
+
+                Waitlist.objects.filter(event=event, team=next_waitlisted_team).delete()
+
+                for member in next_waitlisted_team.members.all():
+                    Registration.objects.update_or_create(
+                        event=event,
+                        user=member.user,
+                        defaults={'status': Registration.Status.CONFIRMED, 'team': next_waitlisted_team}
+                    )
+
+                remaining_teams = Team.objects.filter(event=event, status=Team.RegistrationStatus.WAITLISTED).order_by('created_at')
+                for idx, t in enumerate(remaining_teams):
+                    Waitlist.objects.filter(event=event, team=t).update(position=idx + 1)
+
+        return Response({"detail": "Team cancelled and deleted successfully."}, status=status.HTTP_200_OK)
+
+
+class TeamInvitationViewSet(viewsets.ModelViewSet):
+    queryset = TeamInvitation.objects.all()
+    serializer_class = TeamInvitationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return TeamInvitation.objects.filter(
+            email=self.request.user.email.lower(),
+            status=TeamInvitation.InvitationStatus.PENDING
+        )
+
+    @action(detail=True, methods=['post'])
+    @transaction.atomic
+    def respond(self, request, pk=None):
+        invitation = get_object_or_404(TeamInvitation, id=pk, email=request.user.email.lower())
+        
+        if invitation.status != TeamInvitation.InvitationStatus.PENDING:
+            return Response({"detail": "This invitation has already been processed."}, status=status.HTTP_400_BAD_REQUEST)
+
+        response_action = request.data.get('response')
+        if response_action not in ['accept', 'decline']:
+            return Response({"detail": "Invalid response. Must be 'accept' or 'decline'."}, status=status.HTTP_400_BAD_REQUEST)
+
+        if response_action == 'decline':
+            invitation.status = TeamInvitation.InvitationStatus.DECLINED
+            invitation.save()
+            return Response({"detail": "Invitation declined successfully."}, status=status.HTTP_200_OK)
+
+        team = invitation.team
+        event = team.event
+
+        if TeamMember.objects.filter(team__event=event, user=request.user).exists():
+            return Response({"detail": "You are already in a team for this event."}, status=status.HTTP_400_BAD_REQUEST)
+
+        current_members = team.members.count()
+        if current_members >= event.max_team_size:
+            return Response({"detail": "This team has already reached its maximum size limit."}, status=status.HTTP_400_BAD_REQUEST)
+
+        TeamMember.objects.create(team=team, user=request.user, role=TeamMember.Role.MEMBER)
+
+        invitation.status = TeamInvitation.InvitationStatus.ACCEPTED
+        invitation.save()
+
+        TeamInvitation.objects.filter(
+            email=request.user.email.lower(),
+            team__event=event,
+            status=TeamInvitation.InvitationStatus.PENDING
+        ).update(status=TeamInvitation.InvitationStatus.DECLINED)
+
+        if team.status == Team.RegistrationStatus.REGISTERED:
+            Registration.objects.update_or_create(
+                event=event,
+                user=request.user,
+                defaults={'status': Registration.Status.CONFIRMED, 'team': team}
+            )
+
+        return Response({"detail": "Invitation accepted successfully. You have joined the team."}, status=status.HTTP_200_OK)
+
 
 

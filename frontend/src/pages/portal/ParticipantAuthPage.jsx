@@ -19,11 +19,11 @@ export default function ParticipantAuthPage() {
     try {
       const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
       const eventId = searchParams.get('event');
-      const isAdmin = savedUser?.role === 'admin';
+      const isAdmin = savedUser?.is_admin === true;
       
       if (isAdmin) {
-        // Dual access accounts redirect to Admin workspace first
-        navigate('/dashboard', { replace: true });
+        // Dual access accounts redirect to Admin profile select
+        navigate('/auth/profile-select', { replace: true });
       } else {
         // Standard participants
         if (eventId) {
@@ -250,31 +250,6 @@ export default function ParticipantAuthPage() {
           </button>
         </p>
 
-        <div style={{
-          marginTop: '24px',
-          borderTop: '1px solid var(--gdg-border)',
-          paddingTop: '16px',
-          textAlign: 'center'
-        }}>
-          <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>
-            Are you an Organizer?{' '}
-            <button 
-              onClick={() => navigate('/auth/login')} 
-              style={{ 
-                background: 'none', 
-                border: 'none', 
-                color: '#248689', 
-                fontWeight: 600, 
-                cursor: 'pointer',
-                padding: 0,
-                fontSize: '12px',
-                textDecoration: 'underline'
-              }}
-            >
-              Sign In to Workspace
-            </button>
-          </p>
-        </div>
       </div>
     </div>
   );

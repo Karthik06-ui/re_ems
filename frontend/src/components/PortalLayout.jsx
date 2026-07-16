@@ -15,7 +15,7 @@ export default function PortalLayout({ children }) {
     }
   };
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.is_admin;
 
   return (
     <div className="gdg-dashboard-shell">
@@ -42,7 +42,7 @@ export default function PortalLayout({ children }) {
           )}
         </div>
         <span style={{ fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>
-          Role: <strong style={{ textTransform: 'uppercase' }}>{user?.role}</strong>
+          Account: <strong style={{ textTransform: 'uppercase' }}>{user?.is_admin ? 'ADMIN' : 'PARTICIPANT'}</strong>
         </span>
       </div>
 

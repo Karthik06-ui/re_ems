@@ -12,14 +12,9 @@ export default function MembersDashboard() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState('All');
   
   // Selected Member for Profile Drawer
   const [selectedMember, setSelectedMember] = useState(null);
-
-  // Invite states
-  const [newEmail, setNewEmail] = useState('');
-  const [newRole, setNewRole] = useState('participant');
 
   const fetchMembers = async () => {
     setLoading(true);
@@ -29,7 +24,6 @@ export default function MembersDashboard() {
         id: item.id,
         name: item.user.name || item.user.email,
         email: item.user.email,
-        role: item.role === 'admin' ? 'Admin' : 'Participant',
         status: 'Active',
         registrationsCount: item.user.registrations_count || 0,
         checkinsCount: item.user.checkins_count || 0,
@@ -48,56 +42,9 @@ export default function MembersDashboard() {
     fetchMembers();
   }, []);
 
-  const handleRoleChange = async (memberEmail, newRoleDisplay) => {
-    const backendRole = newRoleDisplay === 'Admin' ? 'admin' : 'participant';
-    
-    const { status, data } = await apiRequest('/api/v1/auth/users/', 'POST', {
-      user_email: memberEmail,
-      role: backendRole
-    }, true);
-
-    if (status === 201 || status === 200) {
-      fetchMembers();
-    } else {
-      alert(data.user_email ? data.user_email[0] : 'Failed to update member role.');
-    }
-  };
-
-  const handleInviteMember = async (e) => {
-    e.preventDefault();
-    if (!newEmail) return;
-
-    const { status, data } = await apiRequest('/api/v1/auth/users/', 'POST', {
-      user_email: newEmail,
-      role: newRole
-    }, true);
-
-    if (status === 201 || status === 200) {
-      setNewEmail('');
-      fetchMembers();
-    } else {
-      alert(data.user_email ? data.user_email[0] : 'Failed to invite member. Please check if user email is registered.');
-    }
-  };
-
-  const handleDeleteMemberRole = async (roleId) => {
-    if (!window.confirm("Remove this member role assignment?")) return;
-    const { status, data } = await apiRequest('/api/v1/auth/users/', 'DELETE', {
-      role_id: roleId
-    }, true);
-
-    if (status === 204 || status === 200) {
-      fetchMembers();
-    } else {
-      alert(data?.detail || 'Failed to remove member role.');
-    }
-  };
-
   const filtered = members.filter(m => {
-    const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          m.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRole = roleFilter === 'All' || m.role === roleFilter;
-    return matchesSearch && matchesRole;
+    return m.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+           m.email.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   return (
@@ -117,15 +64,7 @@ export default function MembersDashboard() {
                 style={{ padding: '6px 12px 6px 30px', borderRadius: '4px', border: '1px solid var(--gdg-border)', fontSize: '13px', width: '100%', boxSizing: 'border-box' }}
               />
             </div>
-            <select 
-              value={roleFilter} 
-              onChange={e => setRoleFilter(e.target.value)}
-              className="gdg-header-dropdown"
-            >
-              <option value="All">All Roles</option>
-              <option value="Admin">Admin</option>
-              <option value="Participant">Participant</option>
-            </select>
+
           </div>
 
           {loading ? (
@@ -135,9 +74,8 @@ export default function MembersDashboard() {
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                 <thead>
                   <tr style={{ backgroundColor: '#F1F3F4', borderBottom: '1px solid var(--gdg-border)', fontWeight: 'bold', color: 'var(--gdg-text-secondary)' }}>
-                    <th style={{ padding: '10px 16px' }}>NAME</th>
-                    <th style={{ padding: '10px 16px' }}>CHAPTER ROLE</th>
-                    <th style={{ padding: '10px 16px' }}>ROLE CONTROL</th>
+                    <th style={{ padding: '10px 16px' }}>NAME / EMAIL</th>
+                    <th style={{ padding: '10px 16px' }}>REGISTRATIONS</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -152,26 +90,7 @@ export default function MembersDashboard() {
                         <span style={{ fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>{m.email}</span>
                       </td>
                       <td style={{ padding: '12px 16px' }}>
-                        <span className="role-tag" style={{ fontSize: '10px' }}>{m.role}</span>
-                      </td>
-                      <td style={{ padding: '12px 16px' }} onClick={e => e.stopPropagation()}>
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <select 
-                            value={m.role} 
-                            onChange={e => handleRoleChange(m.email, e.target.value)}
-                            style={{ fontSize: '12px', padding: '2px 4px', borderRadius: '4px' }}
-                          >
-                            <option value="Admin">Admin</option>
-                            <option value="Participant">Participant</option>
-                          </select>
-                          <button 
-                            className="gdg-share-icon-btn" 
-                            style={{ color: 'var(--gdg-error)', width: '24px', height: '24px', padding: 0 }}
-                            onClick={() => handleDeleteMemberRole(m.id)}
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
+                        <span style={{ fontSize: '12px' }}>{m.registrationsCount} events</span>
                       </td>
                     </tr>
                   ))}
@@ -182,30 +101,6 @@ export default function MembersDashboard() {
         </DashboardCard>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          {/* Invite Member */}
-          <DashboardCard title="Invite New Chapter Member">
-            <form onSubmit={handleInviteMember} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div className="form-group">
-                <label>Email Address</label>
-                <input 
-                  type="email" 
-                  value={newEmail} 
-                  onChange={e => setNewEmail(e.target.value)} 
-                  required 
-                  placeholder="user@gmail.com" 
-                />
-              </div>
-              <div className="form-group">
-                <label>Assigned Role</label>
-                <select value={newRole} onChange={e => setNewRole(e.target.value)}>
-                  <option value="participant">Participant</option>
-                  <option value="admin">Admin</option>
-                </select>
-              </div>
-              <button className="btn btn-primary" type="submit" style={{ alignSelf: 'flex-start' }}>Invite Member</button>
-            </form>
-          </DashboardCard>
-
           {/* Right Column (Participation profiles) */}
           <DashboardCard title="Member Workspace Profile Overview">
             {selectedMember ? (
@@ -213,9 +108,6 @@ export default function MembersDashboard() {
                 <div>
                   <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 500 }}>{selectedMember.name}</h3>
                   <span style={{ fontSize: '13px', color: 'var(--gdg-text-secondary)' }}>{selectedMember.email}</span>
-                  <div style={{ marginTop: '8px' }}>
-                    <span className="role-tag">{selectedMember.role}</span>
-                  </div>
                 </div>
 
                 <div style={{ borderTop: '1px solid var(--gdg-border)', paddingTop: '16px' }}>

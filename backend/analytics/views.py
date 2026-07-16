@@ -8,7 +8,7 @@ from django.contrib.auth import get_user_model
 
 from .models import AnalyticsEvent
 from .serializers import AnalyticsEventSerializer
-from events.models import Event, Registration
+from events.models import Event, Registration, Team, TeamMember, TeamInvitation
 from discussions.models import DiscussionThread
 
 User = get_user_model()
@@ -88,6 +88,15 @@ class AnalyticsViewSet(viewsets.ViewSet):
                 "clicks": clicks
             })
 
+        # Team metrics
+        teams_count = Team.objects.count()
+        registered_teams = Team.objects.filter(status=Team.RegistrationStatus.REGISTERED)
+        registered_teams_count = registered_teams.count()
+        total_members_in_registered_teams = TeamMember.objects.filter(team__in=registered_teams).count()
+        avg_team_size = round(total_members_in_registered_teams / registered_teams_count, 1) if registered_teams_count > 0 else 0.0
+        pending_invitations_count = TeamInvitation.objects.filter(status=TeamInvitation.InvitationStatus.PENDING).count()
+        accepted_invitations_count = TeamInvitation.objects.filter(status=TeamInvitation.InvitationStatus.ACCEPTED).count()
+
         return Response({
             "total_members": users_count,
             "total_events": events_count,
@@ -100,7 +109,14 @@ class AnalyticsViewSet(viewsets.ViewSet):
             "registrations_over_time": registrations_over_time,
             "capacity_utilization": capacity_utilization,
             "member_growth": member_growth,
-            "sponsor_engagement": sponsor_engagement
+            "sponsor_engagement": sponsor_engagement,
+            "team_metrics": {
+                "total_teams": teams_count,
+                "registered_teams": registered_teams_count,
+                "average_team_size": avg_team_size,
+                "pending_invitations": pending_invitations_count,
+                "accepted_invitations": accepted_invitations_count
+            }
         })
 
     @action(detail=False, methods=['post'])

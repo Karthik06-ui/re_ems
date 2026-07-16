@@ -3,8 +3,8 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from django.db import models
-from events.models import Registration, Event
-from events.serializers import EventSerializer
+from events.models import Registration, Event, Team, TeamMember, TeamInvitation
+from events.serializers import EventSerializer, TeamSerializer, TeamInvitationSerializer
 
 class ParticipantDashboardView(views.APIView):
     permission_classes = [IsAuthenticated]
@@ -25,7 +25,7 @@ class ParticipantDashboardView(views.APIView):
         ).exclude(status=Registration.Status.CANCELLED).values_list('event_id', flat=True)
         
         upcoming_events = Event.objects.filter(
-            status=Event.EventStatus.PUBLISHED,
+            status__in=[Event.EventStatus.PUBLISHED, Event.EventStatus.REGISTRATION_OPEN],
             start_time__gt=now
         ).exclude(id__in=registered_event_ids).order_by('start_time')
 
@@ -46,6 +46,14 @@ class ParticipantDashboardView(views.APIView):
         ).select_related('event').order_by('-event__end_time')
         completed_events = [reg.event for reg in completed_registrations]
 
+        # 5. Team Data
+        pending_invitations = TeamInvitation.objects.filter(
+            email=user.email.lower(),
+            status=TeamInvitation.InvitationStatus.PENDING
+        )
+        memberships = TeamMember.objects.filter(user=user)
+        teams = [m.team for m in memberships]
+
         return Response({
             "analytics": {
                 "total_events_participated": total_participated
@@ -54,5 +62,7 @@ class ParticipantDashboardView(views.APIView):
                 "upcoming": EventSerializer(upcoming_events, many=True, context={'request': request}).data,
                 "registered": EventSerializer(registered_events, many=True, context={'request': request}).data,
                 "completed": EventSerializer(completed_events, many=True, context={'request': request}).data,
-            }
+            },
+            "invitations": TeamInvitationSerializer(pending_invitations, many=True, context={'request': request}).data,
+            "teams": TeamSerializer(teams, many=True, context={'request': request}).data
         })
