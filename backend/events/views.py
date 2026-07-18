@@ -503,7 +503,7 @@ class EventViewSet(viewsets.ModelViewSet):
             
         if request.method == 'GET':
             assets_qs = event.assets.all().order_by('uploaded_at')
-            return Response(EventAssetSerializer(assets_qs, many=True).data)
+            return Response(EventAssetSerializer(assets_qs, many=True, context={'request': request}).data)
             
         elif request.method == 'POST':
             file_obj = request.FILES.get('file')
@@ -528,7 +528,33 @@ class EventViewSet(viewsets.ModelViewSet):
                 entity_id=asset.id, entity_label=f"Asset {name} uploaded for {event.title}"
             )
             
-            return Response(EventAssetSerializer(asset).data, status=status.HTTP_201_CREATED)
+            return Response(EventAssetSerializer(asset, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=['delete'], permission_classes=[IsAuthenticated],
+            url_path=r'assets/(?P<asset_id>\d+)')
+    def delete_asset(self, request, pk=None, asset_id=None):
+        """Delete a specific asset belonging to this event. Avoids ownership-filter 404."""
+        event = self.get_object()
+        if not (request.user.is_admin or event.created_by_user == request.user or event.coordinated_by == request.user):
+            return Response({"detail": "You do not have permission to delete assets for this event."}, status=status.HTTP_403_FORBIDDEN)
+
+        asset = get_object_or_404(EventAsset, id=asset_id, event=event)
+
+        # Delete file from storage (Cloudinary or local)
+        if asset.file:
+            try:
+                asset.file.delete(save=False)
+            except Exception:
+                pass
+        asset.delete()
+
+        log_admin_action(
+            request, 'delete', 'EventAsset',
+            entity_id=asset_id, entity_label=f"Asset deleted from event {event.title}"
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
 
 class RegistrationViewSet(viewsets.ModelViewSet):
     queryset = Registration.objects.all().order_by('-registered_at')

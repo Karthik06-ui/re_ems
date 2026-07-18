@@ -491,13 +491,15 @@ export default function EventDetailWorkspace() {
 
   const handleDeleteAsset = async (assetId) => {
     if (!window.confirm("Remove this asset?")) return;
-    const { status } = await apiRequest(`/api/v1/event-assets/${assetId}/`, 'DELETE', null, true);
+    // Use event-scoped delete endpoint to avoid 404 from ownership filter
+    const { status } = await apiRequest(`/api/v1/events/${id}/assets/${assetId}/`, 'DELETE', null, true);
     if (status === 200 || status === 204) {
       fetchReportData();
     } else {
       alert("Failed to delete asset.");
     }
   };
+
 
   // Duplicate Event
   const handleDuplicateEvent = async (eventToDuplicate) => {
