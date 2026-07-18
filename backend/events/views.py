@@ -899,18 +899,36 @@ class EventAssetViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        from django.db import models
+        from django.db import models as db_models
+
+        # For detail actions (retrieve, update, destroy), always use the full queryset
+        # so the object can be found by PK. Permission is checked separately.
+        if self.action in ('retrieve', 'update', 'partial_update', 'destroy'):
+            return EventAsset.objects.all()
+
+        # For list/create, filter by event query param and user ownership
         queryset = EventAsset.objects.all()
         event_id = self.request.query_params.get('event')
         if event_id:
             queryset = queryset.filter(event_id=event_id)
-            
+
         user = self.request.user
         if user.is_admin:
             return queryset
         return queryset.filter(
-            models.Q(event__created_by_user=user) | models.Q(event__coordinated_by=user)
+            db_models.Q(event__created_by_user=user) | db_models.Q(event__coordinated_by=user)
         ).distinct()
+
+    def check_object_permissions(self, request, obj):
+        super().check_object_permissions(request, obj)
+        # Ensure only the event owner, coordinator, or admin can modify/delete assets
+        user = request.user
+        if request.method not in ('GET', 'HEAD', 'OPTIONS'):
+            if not (user.is_admin or
+                    obj.event.created_by_user == user or
+                    obj.event.coordinated_by == user):
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("You do not have permission to modify this asset.")
 
     def perform_create(self, serializer):
         serializer.save(uploaded_by=self.request.user)
@@ -923,6 +941,7 @@ class EventAssetViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass
         instance.delete()
+
 
 
 
