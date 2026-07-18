@@ -916,10 +916,11 @@ class EventAssetViewSet(viewsets.ModelViewSet):
         serializer.save(uploaded_by=self.request.user)
 
     def perform_destroy(self, instance):
-        if instance.file and os.path.exists(instance.file.path):
+        # Delete the file from storage (works for both Cloudinary and local filesystem)
+        if instance.file:
             try:
-                os.remove(instance.file.path)
-            except OSError:
+                instance.file.delete(save=False)
+            except Exception:
                 pass
         instance.delete()
 

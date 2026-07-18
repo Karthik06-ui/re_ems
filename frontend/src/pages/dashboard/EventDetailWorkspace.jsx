@@ -1694,7 +1694,7 @@ export default function EventDetailWorkspace() {
                             {photos.map(photo => (
                               <div key={photo.id} style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--gdg-border)', background: '#f0f0f0' }}>
                                 <img
-                                  src={photo.file}
+                                  src={photo.file_url || photo.file}
                                   alt={photo.name}
                                   style={{ width: '100%', height: '110px', objectFit: 'cover', display: 'block' }}
                                   onError={e => { e.target.style.display = 'none'; }}
@@ -1826,7 +1826,7 @@ export default function EventDetailWorkspace() {
                               <div key={doc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 12px', border: '1px solid var(--gdg-border)', borderRadius: '8px', background: 'var(--gdg-surface)' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
                                   <a
-                                    href={doc.file}
+                                    href={doc.file_url || doc.file}
                                     target="_blank"
                                     rel="noopener noreferrer"
                                     style={{ fontSize: '13px', fontWeight: 500, color: 'var(--gdg-blue)', textDecoration: 'none', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}

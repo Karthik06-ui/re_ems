@@ -230,14 +230,30 @@ class ReportSerializer(serializers.ModelSerializer):
 
 class EventAssetSerializer(serializers.ModelSerializer):
     uploaded_by_email = serializers.SerializerMethodField()
+    file_url = serializers.SerializerMethodField()
 
     class Meta:
         model = EventAsset
-        fields = ('id', 'event', 'file', 'name', 'category', 'uploaded_at', 'uploaded_by', 'uploaded_by_email')
+        fields = ('id', 'event', 'file', 'file_url', 'name', 'category', 'uploaded_at', 'uploaded_by', 'uploaded_by_email')
         read_only_fields = ('id', 'uploaded_at', 'uploaded_by', 'uploaded_by_email')
 
     def get_uploaded_by_email(self, obj):
         return obj.uploaded_by.email if obj.uploaded_by else None
+
+    def get_file_url(self, obj):
+        if not obj.file:
+            return None
+        try:
+            url = obj.file.url
+            # Cloudinary URLs are already absolute — return them directly
+            if url.startswith('http'):
+                return url
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(url)
+            return url
+        except Exception:
+            return None
 
 
 class ReportVersionSerializer(serializers.ModelSerializer):
