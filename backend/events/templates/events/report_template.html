@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Event Report - {{ event.title }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2.5cm 2cm;
+        }
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            color: #333;
+            line-height: 1.5;
+            font-size: 11pt;
+        }
+        h1 {
+            color: #2B579A;
+            font-size: 20pt;
+            border-bottom: 2px solid #2B579A;
+            padding-bottom: 5px;
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #3F51B5;
+            font-size: 14pt;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+        }
+        .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 25px;
+        }
+        .meta-table td {
+            padding: 8px;
+            border: 1px solid #ddd;
+        }
+        .meta-label {
+            font-weight: bold;
+            background-color: #f9f9f9;
+            width: 30%;
+        }
+        
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 10pt;
+        }
+        .data-table th, .data-table td {
+            border: 1px solid #ccc;
+            padding: 8px 10px;
+            text-align: left;
+        }
+        .data-table th {
+            background-color: #f2f2f2;
+            color: #333;
+            font-weight: bold;
+        }
+        .data-table tr:nth-child(even) {
+            background-color: #fafafa;
+        }
+        
+        .section-content {
+            margin-bottom: 25px;
+            text-align: justify;
+            white-space: pre-wrap;
+        }
+        
+        .checklist-table {
+            width: 80%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        .checklist-table th, .checklist-table td {
+            border: 1px solid #ccc;
+            padding: 8px 10px;
+            text-align: left;
+        }
+        .checklist-table th {
+            background-color: #f2f2f2;
+        }
+        .checklist-status {
+            text-align: center;
+            font-weight: bold;
+            color: #2B579A;
+        }
+
+        .signatures {
+            margin-top: 50px;
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .signatures th {
+            text-align: left;
+            padding-bottom: 60px; /* Space for signature */
+        }
+        .signatures td {
+            border-top: 1px solid #333;
+            padding-top: 5px;
+            font-weight: bold;
+            width: 33%;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Event Compilation Report: {{ event.title }}</h1>
+    
+    <table class="meta-table">
+        <tr>
+            <td class="meta-label">Event Category</td>
+            <td>{{ event.category }}</td>
+        </tr>
+        <tr>
+            <td class="meta-label">Event Type</td>
+            <td>{{ event.type }}</td>
+        </tr>
+        <tr>
+            <td class="meta-label">Date & Time</td>
+            <td>{{ event.start_time|date:"F j, Y, g:i a" }} - {{ event.end_time|date:"F j, Y, g:i a" }} ({{ event.timezone }})</td>
+        </tr>
+        <tr>
+            <td class="meta-label">Venue / Platform</td>
+            <td>{{ event.venue }}</td>
+        </tr>
+        <tr>
+            <td class="meta-label">Report Compiled By</td>
+            <td>{{ generated_by.name|default:"System" }} ({{ generated_by.email|default:"" }})</td>
+        </tr>
+    </table>
+
+    <h2>1. Executive Summary</h2>
+    <div class="section-content">{{ report.executive_summary|default:"No executive summary provided." }}</div>
+
+    <h2>2. Objectives and Description</h2>
+    <div class="section-content">{{ event.description|default:"No objective or description provided." }}</div>
+
+    <h2>3. Participant/Team List</h2>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>S.No</th>
+                <th>Name</th>
+                <th>Roll Number</th>
+                <th>Department</th>
+                <th>Year</th>
+                <th>Participation Type</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for reg in registrations %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ reg.user.name }}</td>
+                <td>{{ reg.user.roll_number|default:"N/A" }}</td>
+                <td>{{ reg.user.department|default:"N/A" }}</td>
+                <td>{{ reg.user.year_of_study|default:"N/A" }}</td>
+                <td>{% if reg.team %}Team: {{ reg.team.name }}{% else %}Participant{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" style="text-align: center;">No confirmed participants.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>4. Key Outcomes & Feedback</h2>
+    <div class="section-content">{{ report.key_outcomes|default:"No outcomes provided." }}</div>
+
+    <h2>5. Budget and Expenses</h2>
+    <div class="section-content">{{ report.budget_summary|default:"N/A" }}</div>
+
+    <div class="page-break"></div>
+
+    <h2>6. Supporting Documents Checklist</h2>
+    <table class="checklist-table">
+        <thead>
+            <tr>
+                <th>Document Category</th>
+                <th style="text-align:center;">Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Invitation / Poster</td>
+                <td class="checklist-status">{% if assets_dict.invitation_poster %}☑{% else %}☐{% endif %}</td>
+            </tr>
+            <tr>
+                <td>Certificates / Participation</td>
+                <td class="checklist-status">{% if assets_dict.certificate %}☑{% else %}☐{% endif %}</td>
+            </tr>
+            <tr>
+                <td>Newspaper / Social Media Proof</td>
+                <td class="checklist-status">{% if assets_dict.media_proof %}☑{% else %}☐{% endif %}</td>
+            </tr>
+            <tr>
+                <td>Attendance / Participation List</td>
+                <td class="checklist-status">{% if assets_dict.attendance_list %}☑{% else %}☐{% endif %}</td>
+            </tr>
+            <tr>
+                <td>Budget / Expense Proof</td>
+                <td class="checklist-status">{% if assets_dict.budget_proof %}☑{% else %}☐{% endif %}</td>
+            </tr>
+            <tr>
+                <td>Other Docs</td>
+                <td class="checklist-status">{% if assets_dict.other %}☑{% else %}☐{% endif %}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>7. Institutional Approval Sign-offs</h2>
+    <table class="signatures">
+        <thead>
+            <tr>
+                <th>&nbsp;</th>
+                <th>&nbsp;</th>
+                <th>&nbsp;</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Prepared By:</td>
+                <td>Verified By:</td>
+                <td>Approved By:</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Supporting Assets Appendix -->
+    {% if assets %}
+    <div class="page-break"></div>
+    <h2>Appendix A: Included Asset Documentation</h2>
+    <div style="font-size: 10pt; color: #555; margin-bottom: 20px;">
+        The following assets were uploaded to the compilation workspace and form part of this report. 
+        Note: Original high-resolution files and non-image documents are available in the accompanying ZIP package.
+    </div>
+    
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Category</th>
+                <th>Filename</th>
+                <th>Preview</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for asset in assets %}
+            <tr>
+                <td>{{ asset.get_category_display }}</td>
+                <td>{{ asset.file.name|slice:"13:" }}</td>
+                <td>
+                    {% if asset.is_image %}
+                        <img src="{{ asset.file.path }}" style="max-width: 250px; max-height: 250px; border: 1px solid #ccc; padding: 2px;" alt="{{ asset.name }}">
+                    {% else %}
+                        <i>[Non-image document — included in ZIP package]</i>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+</body>
+</html>

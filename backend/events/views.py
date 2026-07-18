@@ -9,12 +9,13 @@ from django.shortcuts import get_object_or_404
 from rest_framework.views import APIView
 from .models import (
     Event, Registration, Waitlist, Speaker, Session, SurveyQuestion, Announcement, ChapterSetting,
-    Team, TeamMember, TeamInvitation
+    Team, TeamMember, TeamInvitation, Report, EventAsset, ReportVersion
 )
 from .serializers import (
     EventSerializer, RegistrationSerializer, WaitlistSerializer, SpeakerSerializer,
     SessionSerializer, SurveyQuestionSerializer, AnnouncementSerializer, ChapterSettingSerializer,
-    TeamSerializer, TeamMemberSerializer, TeamInvitationSerializer
+    TeamSerializer, TeamMemberSerializer, TeamInvitationSerializer,
+    ReportSerializer, EventAssetSerializer, ReportVersionSerializer
 )
 from authentication.models import User
 from authentication.audit import log_admin_action
@@ -353,6 +354,181 @@ class EventViewSet(viewsets.ModelViewSet):
             entry.save()
             
         return Response({"detail": f"Successfully promoted {email}."}, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['get', 'post'], permission_classes=[IsAuthenticated])
+    def report(self, request, pk=None):
+        event = self.get_object()
+        if not (request.user.is_admin or event.created_by_user == request.user or event.coordinated_by == request.user):
+            return Response({"detail": "You do not have permission to access the report for this event."}, status=status.HTTP_403_FORBIDDEN)
+            
+        report_instance, created = Report.objects.get_or_create(event=event)
+        
+        if request.method == 'GET':
+            serializer = ReportSerializer(report_instance)
+            return Response(serializer.data)
+            
+        elif request.method == 'POST':
+            if report_instance.is_locked:
+                return Response({"detail": "This report is locked and cannot be updated."}, status=status.HTTP_400_BAD_REQUEST)
+                
+            serializer = ReportSerializer(report_instance, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            
+            if event.status == Event.EventStatus.COMPLETED:
+                event.status = Event.EventStatus.REPORT_IN_PROGRESS
+                event.save()
+                
+            return Response(serializer.data)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def lock_report(self, request, pk=None):
+        event = self.get_object()
+        if not (request.user.is_admin or event.created_by_user == request.user or event.coordinated_by == request.user):
+            return Response({"detail": "You do not have permission to lock the report for this event."}, status=status.HTTP_403_FORBIDDEN)
+            
+        report_instance = getattr(event, 'report', None)
+        if not report_instance:
+            return Response({"detail": "Report details have not been initialized yet."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if report_instance.is_locked:
+            return Response({"detail": "Report is already locked."}, status=status.HTTP_200_OK)
+            
+        if not report_instance.summary or not report_instance.outcomes:
+            return Response({"detail": "Summary and Outcomes rich text fields are mandatory before locking the report."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        report_instance.is_locked = True
+        report_instance.locked_at = timezone.now()
+        report_instance.locked_by = request.user
+        report_instance.save()
+        
+        event.status = Event.EventStatus.REPORT_COMPLETED
+        event.save()
+        
+        log_admin_action(
+            request, 'lock', 'Report',
+            entity_id=report_instance.id, entity_label=f"Report for {event.title}"
+        )
+        
+        return Response(ReportSerializer(report_instance).data)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def unlock_report(self, request, pk=None):
+        event = self.get_object()
+        if not (request.user.is_admin or event.coordinated_by == request.user):
+            return Response({"detail": "You do not have permission to unlock the report for this event."}, status=status.HTTP_403_FORBIDDEN)
+            
+        report_instance = getattr(event, 'report', None)
+        if not report_instance:
+            return Response({"detail": "Report details have not been initialized yet."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        if not report_instance.is_locked:
+            return Response({"detail": "Report is not locked."}, status=status.HTTP_200_OK)
+            
+        report_instance.is_locked = False
+        report_instance.locked_at = None
+        report_instance.locked_by = None
+        report_instance.save()
+        
+        event.status = Event.EventStatus.REPORT_IN_PROGRESS
+        event.save()
+        
+        log_admin_action(
+            request, 'unlock', 'Report',
+            entity_id=report_instance.id, entity_label=f"Report for {event.title}"
+        )
+        
+        return Response(ReportSerializer(report_instance).data)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def generate_report(self, request, pk=None):
+        event = self.get_object()
+        if not (request.user.is_admin or event.created_by_user == request.user or event.coordinated_by == request.user):
+            return Response({"detail": "You do not have permission to generate reports for this event."}, status=status.HTTP_403_FORBIDDEN)
+            
+        report_instance = getattr(event, 'report', None)
+        if not report_instance or not report_instance.is_locked:
+            return Response({"detail": "You must lock the report data before compiling the document files."}, status=status.HTTP_400_BAD_REQUEST)
+            
+        try:
+            from .reports import build_event_report
+            version = build_event_report(event.id, requested_by=request.user)
+            
+            log_admin_action(
+                request, 'generate', 'ReportVersion',
+                entity_id=version.id, entity_label=f"v{version.version_number} report for {event.title}"
+            )
+            
+            return Response(ReportVersionSerializer(version, context={'request': request}).data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({"detail": f"Failed to generate report: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    def versions(self, request, pk=None):
+        event = self.get_object()
+        if not (request.user.is_admin or event.created_by_user == request.user or event.coordinated_by == request.user):
+            return Response({"detail": "You do not have permission to view report versions for this event."}, status=status.HTTP_403_FORBIDDEN)
+            
+        versions_qs = event.report_versions.all().order_by('-version_number')
+        return Response(ReportVersionSerializer(versions_qs, many=True, context={'request': request}).data)
+
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    def download_zip(self, request, pk=None):
+        event = self.get_object()
+        if not (request.user.is_admin or event.created_by_user == request.user or event.coordinated_by == request.user):
+            return Response({"detail": "You do not have permission to download report packages for this event."}, status=status.HTTP_403_FORBIDDEN)
+            
+        try:
+            from .reports import compile_report_zip
+            zip_buffer = compile_report_zip(event.id)
+            
+            from django.http import FileResponse
+            response = FileResponse(
+                zip_buffer,
+                content_type='application/zip',
+                as_attachment=True,
+                filename=f"Event_Report_Package_{event.id}.zip"
+            )
+            return response
+        except ValueError as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"detail": f"Failed to package assets: {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['get', 'post'], permission_classes=[IsAuthenticated])
+    def assets(self, request, pk=None):
+        event = self.get_object()
+        if not (request.user.is_admin or event.created_by_user == request.user or event.coordinated_by == request.user):
+            return Response({"detail": "You do not have permission to manage assets for this event."}, status=status.HTTP_403_FORBIDDEN)
+            
+        if request.method == 'GET':
+            assets_qs = event.assets.all().order_by('uploaded_at')
+            return Response(EventAssetSerializer(assets_qs, many=True).data)
+            
+        elif request.method == 'POST':
+            file_obj = request.FILES.get('file')
+            name = request.data.get('name')
+            category = request.data.get('category')
+            
+            if not file_obj:
+                return Response({"detail": "File field is required."}, status=status.HTTP_400_BAD_REQUEST)
+            if not name:
+                name = file_obj.name
+                
+            asset = EventAsset.objects.create(
+                event=event,
+                file=file_obj,
+                name=name,
+                category=category or 'other',
+                uploaded_by=request.user
+            )
+            
+            log_admin_action(
+                request, 'create', 'EventAsset',
+                entity_id=asset.id, entity_label=f"Asset {name} uploaded for {event.title}"
+            )
+            
+            return Response(EventAssetSerializer(asset).data, status=status.HTTP_201_CREATED)
 
 class RegistrationViewSet(viewsets.ModelViewSet):
     queryset = Registration.objects.all().order_by('-registered_at')
@@ -715,6 +891,37 @@ class TeamInvitationViewSet(viewsets.ModelViewSet):
             )
 
         return Response({"detail": "Invitation accepted successfully. You have joined the team."}, status=status.HTTP_200_OK)
+
+
+class EventAssetViewSet(viewsets.ModelViewSet):
+    queryset = EventAsset.objects.all()
+    serializer_class = EventAssetSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        from django.db import models
+        queryset = EventAsset.objects.all()
+        event_id = self.request.query_params.get('event')
+        if event_id:
+            queryset = queryset.filter(event_id=event_id)
+            
+        user = self.request.user
+        if user.is_admin:
+            return queryset
+        return queryset.filter(
+            models.Q(event__created_by_user=user) | models.Q(event__coordinated_by=user)
+        ).distinct()
+
+    def perform_create(self, serializer):
+        serializer.save(uploaded_by=self.request.user)
+
+    def perform_destroy(self, instance):
+        if instance.file and os.path.exists(instance.file.path):
+            try:
+                os.remove(instance.file.path)
+            except OSError:
+                pass
+        instance.delete()
 
 
 

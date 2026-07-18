@@ -52,6 +52,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     roll_number = models.CharField(max_length=50, blank=True, null=True)
     department = models.CharField(max_length=100, blank=True, null=True)
+    year_of_study = models.CharField(max_length=20, blank=True, null=True)
     phone_number = models.CharField(max_length=20, blank=True, null=True)
     notification_preferences = models.TextField(default='{"outreach": true, "announcements": true, "reminders": true}', blank=True)
 
@@ -76,7 +77,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     @property
     def is_profile_completed(self):
-        return bool(self.name and self.roll_number and self.department and self.phone_number)
+        return bool(self.name and self.roll_number and self.department and self.year_of_study and self.phone_number)
 
     def __str__(self):
         label = "admin" if self.is_admin else "participant"

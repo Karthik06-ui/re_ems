@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import (
     Event, Registration, Waitlist, Speaker, Session, SurveyQuestion, Announcement, ChapterSetting,
-    Team, TeamMember, TeamInvitation
+    Team, TeamMember, TeamInvitation, Report, EventAsset, ReportVersion
 )
 from authentication.serializers import UserSerializer
 
@@ -55,6 +55,7 @@ class EventSerializer(serializers.ModelSerializer):
     user_status = serializers.SerializerMethodField()
     created_by_user_email = serializers.SerializerMethodField()
     created_by_profile_name = serializers.SerializerMethodField()
+    coordinated_by_email = serializers.SerializerMethodField()
 
     class Meta:
         model = Event
@@ -65,15 +66,36 @@ class EventSerializer(serializers.ModelSerializer):
             'survey_questions', 'announcements',
             'registration_count', 'waitlist_count', 'user_status',
             'registration_mode', 'min_team_size', 'max_team_size',
-            'created_by_user_email', 'created_by_profile_name'
+            'created_by_user_email', 'created_by_profile_name',
+            'rig_vertical', 'domain_team', 'coordinated_by', 'coordinated_by_email'
         )
-        read_only_fields = ('id', 'created_at', 'created_by_user_email', 'created_by_profile_name')
+        read_only_fields = ('id', 'created_at', 'created_by_user_email', 'created_by_profile_name', 'coordinated_by_email')
 
     def get_created_by_user_email(self, obj):
         return obj.created_by_user.email if obj.created_by_user else None
 
     def get_created_by_profile_name(self, obj):
         return obj.created_by_profile.name if obj.created_by_profile else None
+
+    def get_coordinated_by_email(self, obj):
+        return obj.coordinated_by.email if obj.coordinated_by else None
+
+    def to_internal_value(self, data):
+        # Convert incoming coordinated_by_email to coordinated_by user ID
+        data_copy = data.copy() if hasattr(data, 'copy') else dict(data)
+        if 'coordinated_by_email' in data_copy:
+            email = data_copy.get('coordinated_by_email')
+            if email:
+                try:
+                    user = User.objects.get(email=email.strip().lower())
+                    data_copy['coordinated_by'] = user.id
+                except User.DoesNotExist:
+                    raise serializers.ValidationError({
+                        "coordinated_by_email": f"User with email {email} does not exist. They must register first."
+                    })
+            else:
+                data_copy['coordinated_by'] = None
+        return super().to_internal_value(data_copy)
 
     def get_registration_count(self, obj):
         if obj.registration_mode == 'team':
@@ -193,5 +215,59 @@ class TeamSerializer(serializers.ModelSerializer):
         model = Team
         fields = ('id', 'event', 'event_title', 'name', 'description', 'leader', 'status', 'members', 'invitations', 'created_at')
         read_only_fields = ('id', 'status', 'created_at')
+
+
+class ReportSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Report
+        fields = (
+            'id', 'event', 'summary', 'outcomes', 
+            'sponsored_amount', 'amount_utilized', 'amount_returned',
+            'prize_position', 'prize_details', 'is_locked', 'locked_at', 'locked_by'
+        )
+        read_only_fields = ('id', 'is_locked', 'locked_at', 'locked_by')
+
+
+class EventAssetSerializer(serializers.ModelSerializer):
+    uploaded_by_email = serializers.SerializerMethodField()
+
+    class Meta:
+        model = EventAsset
+        fields = ('id', 'event', 'file', 'name', 'category', 'uploaded_at', 'uploaded_by', 'uploaded_by_email')
+        read_only_fields = ('id', 'uploaded_at', 'uploaded_by', 'uploaded_by_email')
+
+    def get_uploaded_by_email(self, obj):
+        return obj.uploaded_by.email if obj.uploaded_by else None
+
+
+class ReportVersionSerializer(serializers.ModelSerializer):
+    generated_by_email = serializers.SerializerMethodField()
+    docx_file = serializers.SerializerMethodField()
+    pdf_file = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ReportVersion
+        fields = ('id', 'event', 'version_number', 'docx_file', 'pdf_file', 'generated_at', 'generated_by', 'generated_by_email', 'is_active')
+        read_only_fields = ('id', 'version_number', 'generated_at', 'generated_by', 'generated_by_email', 'is_active')
+
+    def get_generated_by_email(self, obj):
+        return obj.generated_by.email if obj.generated_by else None
+
+    def get_docx_file(self, obj):
+        if not obj.docx_file:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.docx_file.url)
+        return obj.docx_file.url
+
+    def get_pdf_file(self, obj):
+        if not obj.pdf_file:
+            return None
+        request = self.context.get('request')
+        if request:
+            return request.build_absolute_uri(obj.pdf_file.url)
+        return obj.pdf_file.url
+
 
 

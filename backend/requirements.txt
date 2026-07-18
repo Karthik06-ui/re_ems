@@ -11,3 +11,5 @@ sqlparse==0.5.5
 tzdata==2026.2
 gunicorn>=23.0.0
 whitenoise>=6.8.2
+python-docx==1.1.2
+docxtpl==0.16.8

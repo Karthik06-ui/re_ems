@@ -14,6 +14,7 @@ export default function ParticipantProfile() {
     name: '',
     roll_number: '',
     department: '',
+    year_of_study: '',
     phone_number: '',
   });
   const [email, setEmail] = useState('');
@@ -30,6 +31,7 @@ export default function ParticipantProfile() {
           name: res.data.name || '',
           roll_number: res.data.roll_number || '',
           department: res.data.department || '',
+          year_of_study: res.data.year_of_study || '',
           phone_number: res.data.phone_number || '',
         });
         setEmail(res.data.email || '');
@@ -46,7 +48,7 @@ export default function ParticipantProfile() {
     setSuccessMsg('');
 
     // Field validation
-    if (!formData.name.trim() || !formData.roll_number.trim() || !formData.department.trim() || !formData.phone_number.trim()) {
+    if (!formData.name.trim() || !formData.roll_number.trim() || !formData.department.trim() || !formData.year_of_study.trim() || !formData.phone_number.trim()) {
       setErrorMsg('All fields are mandatory to complete your profile.');
       setSaving(false);
       return;
@@ -222,6 +224,32 @@ export default function ParticipantProfile() {
                   outline: 'none'
                 }}
               />
+            </div>
+
+            <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--gdg-text-secondary)' }}>Year of Study</label>
+              <select 
+                value={formData.year_of_study || ''} 
+                onChange={e => setFormData({ ...formData, year_of_study: e.target.value })} 
+                required 
+                style={{
+                  padding: '10px 12px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--gdg-border)',
+                  fontSize: '14px',
+                  outline: 'none',
+                  backgroundColor: '#FFF'
+                }}
+              >
+                <option value="" disabled>Select your year</option>
+                <option value="1st Year">1st Year</option>
+                <option value="2nd Year">2nd Year</option>
+                <option value="3rd Year">3rd Year</option>
+                <option value="4th Year">4th Year</option>
+                <option value="5th Year">5th Year</option>
+                <option value="Alumni">Alumni</option>
+                <option value="Faculty/Staff">Faculty/Staff</option>
+              </select>
             </div>
 
             <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>

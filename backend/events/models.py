@@ -15,6 +15,8 @@ class Event(models.Model):
         REGISTRATION_OPEN = 'registration open', 'Registration Open'
         REGISTRATION_CLOSED = 'registration closed', 'Registration Closed'
         COMPLETED = 'completed', 'Completed'
+        REPORT_IN_PROGRESS = 'report_in_progress', 'Report In Progress'
+        REPORT_COMPLETED = 'report_completed', 'Report Completed'
         ARCHIVED = 'archived', 'Archived'
         CANCELLED = 'cancelled', 'Cancelled'
         HIDDEN = 'hidden', 'Hidden'
@@ -55,6 +57,15 @@ class Event(models.Model):
         'authentication.AdminProfile', on_delete=models.SET_NULL,
         null=True, blank=True, related_name='created_events'
     )
+    rig_vertical = models.CharField(max_length=100, blank=True, null=True)
+    domain_team = models.CharField(max_length=100, blank=True, null=True)
+    coordinated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='coordinated_events'
+    )
+
+    class Meta:
+        ordering = ['-created_at']
 
     def __str__(self):
         return self.title
@@ -246,6 +257,65 @@ class TeamInvitation(models.Model):
 
     def __str__(self):
         return f"Invite for {self.email} to {self.team.name} ({self.status})"
+
+
+class Report(models.Model):
+    event = models.OneToOneField(Event, on_delete=models.CASCADE, related_name='report')
+    summary = models.TextField(blank=True, help_text="Rich text field containing the event summary.")
+    outcomes = models.TextField(blank=True, help_text="Rich text field containing outcomes & key takeaways.")
+    
+    # Financial fields
+    sponsored_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    amount_utilized = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    amount_returned = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    
+    # Prize/Recognition fields
+    prize_position = models.CharField(max_length=255, blank=True, null=True, help_text="e.g. 1st, 2nd, 3rd")
+    prize_details = models.TextField(blank=True, null=True, help_text="Details of winners and prize items.")
+    
+    is_locked = models.BooleanField(default=False)
+    locked_at = models.DateTimeField(null=True, blank=True)
+    locked_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self):
+        return f"Report for {self.event.title}"
+
+
+class EventAsset(models.Model):
+    class AssetCategory(models.TextChoices):
+        PHOTO = 'photo', 'Event Photograph'
+        INVITATION_POSTER = 'invitation_poster', 'Invitation / Poster'
+        CERTIFICATE = 'certificate', 'Certificates / Achievement'
+        MEDIA_PROOF = 'media_proof', 'Newspaper / Social Media Proof'
+        ATTENDANCE_LIST = 'attendance_list', 'Attendance / Participation List'
+        BUDGET_PROOF = 'budget_proof', 'Budget / Expense Proof'
+        OTHER = 'other', 'Other'
+
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='assets')
+    file = models.FileField(upload_to='event_assets/%Y/%m/')
+    name = models.CharField(max_length=255)
+    category = models.CharField(max_length=50, choices=AssetCategory.choices, default=AssetCategory.OTHER)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.name} ({self.category}) - {self.event.title}"
+
+
+class ReportVersion(models.Model):
+    event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='report_versions')
+    version_number = models.PositiveIntegerField()
+    docx_file = models.FileField(upload_to='generated_reports/docx/')
+    pdf_file = models.FileField(upload_to='generated_reports/pdf/')
+    generated_at = models.DateTimeField(auto_now_add=True)
+    generated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ['-version_number']
+
+    def __str__(self):
+        return f"v{self.version_number} - {self.event.title}"
 
 
 

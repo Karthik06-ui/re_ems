@@ -17,21 +17,6 @@
   --border-color: #e5e7eb;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --primary: #c084fc;
-    --primary-hover: #a855f7;
-    --primary-bg: rgba(192, 132, 252, 0.12);
-    --success: #34d399;
-    --success-bg: rgba(52, 211, 153, 0.15);
-    --card-bg: #1e2028;
-    --panel-bg: #191b22;
-    --input-bg: #12131a;
-    --text-primary: #f3f4f6;
-    --text-secondary: #9ca3af;
-    --border-color: #2e303a;
-  }
-}
 
 .sandbox-container {
   display: flex;

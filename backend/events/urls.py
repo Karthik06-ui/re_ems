@@ -3,7 +3,7 @@ from rest_framework.routers import SimpleRouter
 from .views import (
     EventViewSet, SpeakerViewSet, SessionViewSet,
     SurveyQuestionViewSet, AnnouncementViewSet, RegistrationViewSet,
-    TeamViewSet, TeamInvitationViewSet
+    TeamViewSet, TeamInvitationViewSet, EventAssetViewSet
 )
 
 router = SimpleRouter()
@@ -14,6 +14,7 @@ router.register('announcements', AnnouncementViewSet, basename='announcement')
 router.register('registrations', RegistrationViewSet, basename='registration')
 router.register('teams', TeamViewSet, basename='team')
 router.register('invitations', TeamInvitationViewSet, basename='invitation')
+router.register('event-assets', EventAssetViewSet, basename='event-asset')
 router.register('', EventViewSet, basename='event')
 
 urlpatterns = [

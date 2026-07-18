@@ -68,6 +68,27 @@ export default function EventDetailWorkspace() {
   const [startTime, setStartTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [saving, setSaving] = useState(false);
+  const [rigVertical, setRigVertical] = useState('');
+  const [domainTeam, setDomainTeam] = useState('');
+  const [coordinatedByEmail, setCoordinatedByEmail] = useState('');
+
+  // Report Tab States
+  const [report, setReport] = useState(null);
+  const [reportSummary, setReportSummary] = useState('');
+  const [reportOutcomes, setReportOutcomes] = useState('');
+  const [sponsoredAmount, setSponsoredAmount] = useState('0');
+  const [amountUtilized, setAmountUtilized] = useState('0');
+  const [amountReturned, setAmountReturned] = useState('0');
+  const [prizePosition, setPrizePosition] = useState('');
+  const [prizeDetails, setPrizeDetails] = useState('');
+  const [reportVersions, setReportVersions] = useState([]);
+  const [reportAssets, setReportAssets] = useState([]);
+  // Photo upload state
+  const [photoFiles, setPhotoFiles] = useState([]);       // File[] staged for upload
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
+  // Supporting documents queue  { id, category, otherLabel, file }
+  const [docQueue, setDocQueue] = useState([{ id: Date.now(), category: 'invitation_poster', otherLabel: '', file: null }]);
+  const [uploadingDocs, setUploadingDocs] = useState(false);
 
   // Communications announcements list
   const [announcements, setAnnouncements] = useState([]);
@@ -150,6 +171,9 @@ export default function EventDetailWorkspace() {
       setRegistrationMode(data.registration_mode || 'individual');
       setMinTeamSize(data.min_team_size || 1);
       setMaxTeamSize(data.max_team_size || 1);
+      setRigVertical(data.rig_vertical || '');
+      setDomainTeam(data.domain_team || '');
+      setCoordinatedByEmail(data.coordinated_by_email || '');
       if (data.start_time) {
         const d = new Date(data.start_time);
         setStartTime(new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16));
@@ -228,7 +252,7 @@ export default function EventDetailWorkspace() {
   const handleUpdateDetails = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const { status } = await apiRequest(`/api/v1/events/${id}/`, 'PATCH', {
+    const { status, data } = await apiRequest(`/api/v1/events/${id}/`, 'PATCH', {
       title,
       venue,
       capacity: parseInt(capacity),
@@ -240,16 +264,239 @@ export default function EventDetailWorkspace() {
       end_time: endTime ? new Date(endTime).toISOString() : undefined,
       registration_mode: registrationMode,
       min_team_size: registrationMode === 'team' ? parseInt(minTeamSize) : 1,
-      max_team_size: registrationMode === 'team' ? parseInt(maxTeamSize) : 1
+      max_team_size: registrationMode === 'team' ? parseInt(maxTeamSize) : 1,
+      rig_vertical: rigVertical,
+      domain_team: domainTeam,
+      coordinated_by_email: coordinatedByEmail
     }, true);
 
     if (status === 200) {
       alert('Event parameters saved successfully!');
       fetchWorkspaceDetails();
     } else {
-      alert('Failed to update event settings.');
+      const errorMsg = data?.coordinated_by_email?.[0] || data?.detail || JSON.stringify(data);
+      alert('Failed to update event settings: ' + errorMsg);
     }
     setSaving(false);
+  };
+
+  const fetchReportData = async () => {
+    if (tab !== 'report') return;
+    
+    // Fetch report details
+    const repRes = await apiRequest(`/api/v1/events/${id}/report/`, 'GET', null, true);
+    if (repRes.status === 200) {
+      setReport(repRes.data);
+      setReportSummary(repRes.data.summary || '');
+      setReportOutcomes(repRes.data.outcomes || '');
+      setSponsoredAmount(repRes.data.sponsored_amount || '0');
+      setAmountUtilized(repRes.data.amount_utilized || '0');
+      setAmountReturned(repRes.data.amount_returned || '0');
+      setPrizePosition(repRes.data.prize_position || '');
+      setPrizeDetails(repRes.data.prize_details || '');
+    }
+
+    // Fetch versions
+    const verRes = await apiRequest(`/api/v1/events/${id}/versions/`, 'GET', null, true);
+    if (verRes.status === 200) {
+      setReportVersions(verRes.data);
+    }
+
+    // Fetch assets
+    const assetRes = await apiRequest(`/api/v1/events/${id}/assets/`, 'GET', null, true);
+    if (assetRes.status === 200) {
+      setReportAssets(assetRes.data);
+    }
+  };
+
+  useEffect(() => {
+    if (tab === 'report') {
+      fetchReportData();
+    }
+  }, [tab, id]);
+
+  const handleSaveReportDraft = async () => {
+    setSaving(true);
+    const { status, data } = await apiRequest(`/api/v1/events/${id}/report/`, 'POST', {
+      summary: reportSummary,
+      outcomes: reportOutcomes,
+      sponsored_amount: parseFloat(sponsoredAmount) || 0,
+      amount_utilized: parseFloat(amountUtilized) || 0,
+      amount_returned: parseFloat(amountReturned) || 0,
+      prize_position: prizePosition,
+      prize_details: prizeDetails
+    }, true);
+
+    if (status === 200) {
+      alert('Report draft saved successfully!');
+      fetchReportData();
+    } else {
+      alert('Failed to save report draft: ' + JSON.stringify(data));
+    }
+    setSaving(false);
+  };
+
+  const handleLockReport = async () => {
+    if (!reportSummary || !reportOutcomes) {
+      alert('Executive Summary and Key Takeaways are mandatory before locking the report.');
+      return;
+    }
+    if (!window.confirm("Are you sure you want to Lock this report? Once locked, manual fields will be immutable, and you will be able to compile the report files.")) return;
+    
+    setSaving(true);
+    // Save draft first
+    await apiRequest(`/api/v1/events/${id}/report/`, 'POST', {
+      summary: reportSummary,
+      outcomes: reportOutcomes,
+      sponsored_amount: parseFloat(sponsoredAmount) || 0,
+      amount_utilized: parseFloat(amountUtilized) || 0,
+      amount_returned: parseFloat(amountReturned) || 0,
+      prize_position: prizePosition,
+      prize_details: prizeDetails
+    }, true);
+
+    const { status, data } = await apiRequest(`/api/v1/events/${id}/lock_report/`, 'POST', {}, true);
+    if (status === 200) {
+      alert('Report locked successfully! Event is now Report Completed.');
+      fetchReportData();
+      fetchWorkspaceDetails();
+    } else {
+      alert('Failed to lock report: ' + (data?.detail || JSON.stringify(data)));
+    }
+    setSaving(false);
+  };
+
+  const handleUnlockReport = async () => {
+    if (!window.confirm("Unlock report for editing? This will return the event to 'Report In Progress'.")) return;
+    setSaving(true);
+    const { status, data } = await apiRequest(`/api/v1/events/${id}/unlock_report/`, 'POST', {}, true);
+    if (status === 200) {
+      alert('Report unlocked.');
+      fetchReportData();
+      fetchWorkspaceDetails();
+    } else {
+      alert('Failed to unlock report: ' + (data?.detail || JSON.stringify(data)));
+    }
+    setSaving(false);
+  };
+
+  const handleGenerateReport = async () => {
+    setSaving(true);
+    const { status, data } = await apiRequest(`/api/v1/events/${id}/generate_report/`, 'POST', {}, true);
+    if (status === 201) {
+      alert('DOCX and PDF report versions successfully compiled!');
+      fetchReportData();
+    } else {
+      alert('Report generation failed: ' + (data?.detail || JSON.stringify(data)));
+    }
+    setSaving(false);
+  };
+
+  const handleZipDownload = async () => {
+    try {
+      const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const token = localStorage.getItem('access_token');
+      const response = await fetch(`${BASE_URL}/api/v1/events/${id}/download_zip/`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to download ZIP package.');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `Event_Report_Package_${id}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err.message);
+    }
+  };
+
+  // ── Shared single-file upload helper ───────────────────────────────────────
+  const uploadSingleAsset = async (file, category, name) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('name', name || file.name);
+    formData.append('category', category);
+    const token = localStorage.getItem('access_token');
+    const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+    const response = await fetch(`${BASE_URL}/api/v1/events/${id}/assets/`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+      body: formData,
+    });
+    // Safely parse JSON only when the response body is JSON
+    const contentType = response.headers.get('content-type') || '';
+    const resData = contentType.includes('application/json') ? await response.json() : {};
+    if (!response.ok) {
+      throw new Error(resData?.detail || `Server error ${response.status}`);
+    }
+    return resData;
+  };
+
+  // ── Photo upload (max 4 total) ───────────────────────────────────────────────
+  const handlePhotoUpload = async () => {
+    if (photoFiles.length === 0) { alert('Please select at least one photo.'); return; }
+    const currentPhotoCount = reportAssets.filter(a => a.category === 'photo').length;
+    const slotsLeft = 4 - currentPhotoCount;
+    if (slotsLeft <= 0) { alert('Maximum 4 event photos allowed. Remove an existing photo to upload a new one.'); return; }
+    const filesToUpload = photoFiles.slice(0, slotsLeft);
+    if (filesToUpload.length < photoFiles.length) {
+      alert(`Only ${slotsLeft} slot(s) remaining. Uploading first ${slotsLeft} selected photo(s).`);
+    }
+    setUploadingPhotos(true);
+    let succeeded = 0;
+    for (const file of filesToUpload) {
+      try {
+        await uploadSingleAsset(file, 'photo', file.name);
+        succeeded++;
+      } catch (err) {
+        alert(`Failed to upload "${file.name}": ${err.message}`);
+      }
+    }
+    setPhotoFiles([]);
+    setUploadingPhotos(false);
+    if (succeeded > 0) fetchReportData();
+  };
+
+  // ── Supporting documents queue upload ────────────────────────────────────────
+  const handleDocUpload = async () => {
+    const validRows = docQueue.filter(row => row.file);
+    if (validRows.length === 0) { alert('Please select at least one file to upload.'); return; }
+    setUploadingDocs(true);
+    let succeeded = 0;
+    for (const row of validRows) {
+      const assetName = row.category === 'other' && row.otherLabel
+        ? `Other — ${row.otherLabel} (${row.file.name})`
+        : row.file.name;
+      try {
+        await uploadSingleAsset(row.file, row.category, assetName);
+        succeeded++;
+      } catch (err) {
+        alert(`Failed to upload "${row.file.name}": ${err.message}`);
+      }
+    }
+    // Reset queue to a single blank row after upload
+    setDocQueue([{ id: Date.now(), category: 'invitation_poster', otherLabel: '', file: null }]);
+    setUploadingDocs(false);
+    if (succeeded > 0) fetchReportData();
+  };
+
+  const handleDeleteAsset = async (assetId) => {
+    if (!window.confirm("Remove this asset?")) return;
+    const { status } = await apiRequest(`/api/v1/event-assets/${assetId}/`, 'DELETE', null, true);
+    if (status === 200 || status === 204) {
+      fetchReportData();
+    } else {
+      alert("Failed to delete asset.");
+    }
   };
 
   // Duplicate Event
@@ -459,7 +706,7 @@ export default function EventDetailWorkspace() {
 
   const workspaceTabs = [
     'overview', 'details', 'agenda', 'speakers', 'registrations', 
-    'waitlist', 'surveys', 'sponsors', 'communications', 'analytics', 'wrapup'
+    'waitlist', 'surveys', 'sponsors', 'communications', 'analytics', 'report'
   ];
 
   return (
@@ -536,7 +783,7 @@ export default function EventDetailWorkspace() {
             onClick={() => navigate(`/dashboard/events/${id}/${t}`)}
             style={{ textTransform: 'capitalize' }}
           >
-            {t === 'wrapup' ? 'Wrap Up' : t}
+            {t === 'report' ? 'Report' : t}
           </button>
         ))}
       </div>
@@ -628,8 +875,24 @@ export default function EventDetailWorkspace() {
                   <option value="registration open">Registration Open</option>
                   <option value="registration closed">Registration Closed</option>
                   <option value="completed">Completed</option>
+                  <option value="report_in_progress">Report In Progress</option>
+                  <option value="report_completed">Report Completed</option>
                   <option value="archived">Archived</option>
                 </select>
+              </div>
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>RiG Vertical</label>
+                  <input type="text" value={rigVertical} onChange={e => setRigVertical(e.target.value)} placeholder="e.g. Energy, Aerospace" />
+                </div>
+                <div className="form-group">
+                  <label>Domain / Team</label>
+                  <input type="text" value={domainTeam} onChange={e => setDomainTeam(e.target.value)} placeholder="e.g. Web Dev, Design" />
+                </div>
+              </div>
+              <div className="form-group">
+                <label>Coordinated By User Email</label>
+                <input type="email" value={coordinatedByEmail} onChange={e => setCoordinatedByEmail(e.target.value)} placeholder="coordinator@communityplatform.com" />
               </div>
               <div className="form-group">
                 <label>Cover Image / Banner URL</label>
@@ -1098,27 +1361,538 @@ export default function EventDetailWorkspace() {
           </div>
         )}
 
-        {/* WRAP UP TAB */}
-        {tab === 'wrapup' && (
-          <DashboardCard title="Post-Event Wrap Up Resources" className="max-w-xl">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div className="form-group">
-                <label>Slide Deck Link URL</label>
-                <input type="url" placeholder="https://docs.google.com/presentation/..." style={{ width: '100%' }} />
+        {/* REPORT TAB */}
+        {tab === 'report' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            
+            {/* Status Header */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '20px',
+              backgroundColor: '#fff',
+              borderRadius: '8px',
+              border: '1px solid var(--gdg-border)',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
+            }}>
+              <div>
+                <span style={{ fontSize: '12px', textTransform: 'uppercase', fontWeight: 600, color: 'var(--gdg-text-secondary)', display: 'block', marginBottom: '4px' }}>
+                  Event Lifecycle Phase
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 500 }}>
+                    {event.status === 'report_completed' ? '🔒 Locked & Closed' : '📝 Report In Progress'}
+                  </h3>
+                  <span style={{
+                    fontSize: '11px',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    fontWeight: 600,
+                    backgroundColor: event.status === 'report_completed' ? 'var(--gdg-blue-light)' : '#FEF7E0',
+                    color: event.status === 'report_completed' ? 'var(--gdg-blue)' : '#B06000'
+                  }}>
+                    {event.status === 'report_completed' ? 'Completed' : 'Drafting'}
+                  </span>
+                </div>
               </div>
-              <div className="form-group">
-                <label>Resource Folder Link</label>
-                <input type="url" placeholder="https://github.com/GDG-chapter/..." style={{ width: '100%' }} />
+
+              <div style={{ display: 'flex', gap: '12px' }}>
+                {report && !report.is_locked ? (
+                  <>
+                    <button className="btn btn-secondary" onClick={handleSaveReportDraft} disabled={saving}>
+                      Save Progress
+                    </button>
+                    <button className="btn btn-primary" onClick={handleLockReport} disabled={saving}>
+                      Lock & Submit Data
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {event.status === 'report_completed' && (
+                      <button className="btn btn-secondary" onClick={handleUnlockReport} disabled={saving} style={{ color: 'var(--gdg-error)' }}>
+                        Unlock Editor
+                      </button>
+                    )}
+                    {/* <button className="btn btn-primary" onClick={handleGenerateReport} disabled={saving}>
+                      Compile Report (DOCX & PDF)
+                    </button> */}
+                  </>
+                )}
               </div>
-              <div className="form-group">
-                <label>Wrap Up Summary Editor</label>
-                <textarea rows={4} placeholder="Thank you attendees for joining... The code lab files are uploaded below." style={{ width: '100%' }} />
-              </div>
-              <button className="btn btn-primary" style={{ alignSelf: 'flex-start' }} onClick={() => alert('Resources saved!')}>
-                Save Wrap Up Assets
-              </button>
             </div>
-          </DashboardCard>
+
+            {/* main reporting split */}
+            <div className="gdg-grid-2-1">
+              
+              {/* Left Column: Form / Download Center */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                
+                {/* Download Center - Visible only when report is locked & generated */}
+                {report && report.is_locked && (
+                  <DashboardCard title="📥 Report Download Center" style={{ borderLeft: '4px solid var(--gdg-blue)' }}>
+                    <p style={{ fontSize: '13px', color: 'var(--gdg-text-secondary)', margin: '0 0 20px 0' }}>
+                      The report data is locked. You can download the completed report in Word, PDF, or download a full ZIP backup.
+                    </p>
+
+                    {reportVersions.length === 0 ? (
+                      <div style={{ padding: '16px', backgroundColor: '#F8F9FA', borderRadius: '6px', textAlign: 'center' }}>
+                        <span style={{ fontSize: '13px', color: 'var(--gdg-text-secondary)', display: 'block', marginBottom: '8px' }}>
+                          No files generated for this version yet.
+                        </span>
+                        <button className="btn btn-primary" onClick={handleGenerateReport} disabled={saving}>
+                          Generate Report Files Now
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+                        <a 
+                          href={reportVersions[0].docx_file} 
+                          download 
+                          className="btn btn-primary" 
+                          style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#2B579A' }}
+                        >
+                          <Download size={16} />
+                          Download Word Report (DOCX)
+                        </a>
+
+                        <a 
+                          href={reportVersions[0].pdf_file} 
+                          download 
+                          className="btn btn-primary" 
+                          style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#B30006' }}
+                        >
+                          <Download size={16} />
+                          Download PDF Report (PDF)
+                        </a>
+
+                        <button 
+                          onClick={handleZipDownload}
+                          className="btn btn-primary" 
+                          style={{ border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: '#3F51B5', padding: '10px 16px', borderRadius: '4px', color: '#FFF', fontSize: '14px', fontWeight: 500 }}
+                        >
+                          <Download size={16} />
+                          Download Full Package (ZIP + Assets)
+                        </button>
+                      </div>
+                    )}
+                  </DashboardCard>
+                )}
+
+                {/* Report Form Wizard */}
+                <DashboardCard title="Event Report Content Wizard">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    
+                    <div className="form-group">
+                      <label style={{ fontWeight: 600 }}>1. Executive Event Summary</label>
+                      <span style={{ fontSize: '11px', color: 'var(--gdg-text-secondary)', display: 'block', margin: '-4px 0 8px 0' }}>
+                        Rich details explaining the event purpose, activities and scope.
+                      </span>
+                      <textarea 
+                        rows={6} 
+                        value={reportSummary} 
+                        onChange={e => setReportSummary(e.target.value)} 
+                        disabled={report?.is_locked}
+                        placeholder="Write a professional summary here..."
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label style={{ fontWeight: 600 }}>2. Key Takeaways & Outcomes</label>
+                      <span style={{ fontSize: '11px', color: 'var(--gdg-text-secondary)', display: 'block', margin: '-4px 0 8px 0' }}>
+                        Core learnings, attendee responses, metrics, or future goals.
+                      </span>
+                      <textarea 
+                        rows={6} 
+                        value={reportOutcomes} 
+                        onChange={e => setReportOutcomes(e.target.value)} 
+                        disabled={report?.is_locked}
+                        placeholder="Detail the outcomes here..."
+                      />
+                    </div>
+
+                    <hr style={{ border: 0, borderTop: '1px solid var(--gdg-border)', margin: '10px 0' }} />
+
+                    <label style={{ fontWeight: 600, fontSize: '14px' }}>3. Financial Accounts Audit</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                      <div className="form-group">
+                        <label>Sponsored (Rs.)</label>
+                        <input 
+                          type="number" 
+                          value={sponsoredAmount} 
+                          onChange={e => setSponsoredAmount(e.target.value)} 
+                          disabled={report?.is_locked}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Utilized (Rs.)</label>
+                        <input 
+                          type="number" 
+                          value={amountUtilized} 
+                          onChange={e => setAmountUtilized(e.target.value)} 
+                          disabled={report?.is_locked}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Returned (Rs.)</label>
+                        <input 
+                          type="number" 
+                          value={amountReturned} 
+                          onChange={e => setAmountReturned(e.target.value)} 
+                          disabled={report?.is_locked}
+                        />
+                      </div>
+                    </div>
+
+                    <hr style={{ border: 0, borderTop: '1px solid var(--gdg-border)', margin: '10px 0' }} />
+
+                    <label style={{ fontWeight: 600, fontSize: '14px' }}>4. Awards & Recognition</label>
+                    <div className="form-group">
+                      <label>Prize Positions</label>
+                      <input 
+                        type="text" 
+                        value={prizePosition} 
+                        onChange={e => setPrizePosition(e.target.value)} 
+                        disabled={report?.is_locked}
+                        placeholder="e.g. 1st, 2nd, 3rd Positions"
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>Award / Winners Details</label>
+                      <textarea 
+                        rows={3} 
+                        value={prizeDetails} 
+                        onChange={e => setPrizeDetails(e.target.value)} 
+                        disabled={report?.is_locked}
+                        placeholder="Detail the winning team names and items distributed..."
+                      />
+                    </div>
+
+                  </div>
+                </DashboardCard>
+
+              </div>
+
+              {/* Right Column: Uploads & Verification Info */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                
+                {/* Auto Filled Summary */}
+                <DashboardCard title="📋 Auto-populated Metrics Checklist">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--gdg-text-secondary)' }}>Event ID:</span>
+                      <strong>{event.id}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--gdg-text-secondary)' }}>RiG Vertical:</span>
+                      <strong>{event.rig_vertical || 'N/A'}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--gdg-text-secondary)' }}>Domain Team:</span>
+                      <strong>{event.domain_team || 'N/A'}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--gdg-text-secondary)' }}>Coordinator:</span>
+                      <strong>{event.coordinated_by_email || 'Not Assigned'}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--gdg-border)', paddingTop: '8px' }}>
+                      <span style={{ color: 'var(--gdg-text-secondary)' }}>Confirmed Attendees:</span>
+                      <strong>{registrations.length}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--gdg-text-secondary)' }}>Checked In:</span>
+                      <strong>{registrations.filter(r => r.status === 'checked_in').length}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--gdg-text-secondary)' }}>Sessions Timeline slots:</span>
+                      <strong>{sessions.length}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--gdg-text-secondary)' }}>Sponsors count:</span>
+                      <strong>{eventSponsors.length}</strong>
+                    </div>
+                  </div>
+                </DashboardCard>
+
+                {/* ── Card 1: Event Photographs ─────────────────────────────────── */}
+                <DashboardCard title="📷 Event Photographs">
+                  {(() => {
+                    const photos = reportAssets.filter(a => a.category === 'photo');
+                    const photoCount = photos.length;
+                    const slotsLeft = 4 - photoCount;
+
+                    return (
+                      <>
+                        {/* Photo count badge */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                          <span style={{
+                            padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: 600,
+                            background: photoCount >= 4 ? 'var(--gdg-error)' : 'var(--gdg-blue)',
+                            color: '#fff'
+                          }}>
+                            {photoCount} / 4 uploaded
+                          </span>
+                          {slotsLeft > 0 && (
+                            <span style={{ fontSize: '12px', color: 'var(--gdg-text-secondary)' }}>
+                              {slotsLeft} slot{slotsLeft !== 1 ? 's' : ''} remaining
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Upload controls — only when unlocked */}
+                        {report && !report.is_locked && slotsLeft > 0 && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px', paddingBottom: '16px', borderBottom: '1px solid var(--gdg-border)' }}>
+                            <input
+                              id="photo_file_input"
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              style={{ border: 'none', padding: 0, fontSize: '13px' }}
+                              onChange={e => {
+                                const selected = Array.from(e.target.files || []);
+                                setPhotoFiles(selected.slice(0, slotsLeft));
+                                if (selected.length > slotsLeft)
+                                  alert(`Only ${slotsLeft} slot(s) left — first ${slotsLeft} image(s) selected.`);
+                              }}
+                            />
+                            {/* Staged files list */}
+                            {photoFiles.length > 0 && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {photoFiles.map((f, i) => (
+                                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', padding: '4px 8px', background: 'var(--gdg-surface)', borderRadius: '6px', border: '1px solid var(--gdg-border)' }}>
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📄 {f.name}</span>
+                                    <button
+                                      onClick={() => setPhotoFiles(prev => prev.filter((_, j) => j !== i))}
+                                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gdg-error)', fontSize: '14px', padding: '0 4px' }}
+                                    >✕</button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <button
+                              className="btn btn-primary"
+                              onClick={handlePhotoUpload}
+                              disabled={uploadingPhotos || photoFiles.length === 0}
+                              style={{ alignSelf: 'flex-start' }}
+                            >
+                              {uploadingPhotos ? 'Uploading…' : `Upload ${photoFiles.length > 0 ? photoFiles.length : ''} Photo${photoFiles.length !== 1 ? 's' : ''}`}
+                            </button>
+                          </div>
+                        )}
+
+                        {report && !report.is_locked && slotsLeft === 0 && (
+                          <p style={{ fontSize: '12px', color: 'var(--gdg-error)', marginBottom: '16px', fontStyle: 'italic' }}>
+                            Maximum 4 photos reached. Delete a photo to upload a new one.
+                          </p>
+                        )}
+
+                        {/* Thumbnail grid */}
+                        {photos.length === 0 ? (
+                          <p style={{ fontSize: '12px', fontStyle: 'italic', color: 'var(--gdg-text-secondary)' }}>No event photos uploaded yet.</p>
+                        ) : (
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                            {photos.map(photo => (
+                              <div key={photo.id} style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--gdg-border)', background: '#f0f0f0' }}>
+                                <img
+                                  src={photo.file}
+                                  alt={photo.name}
+                                  style={{ width: '100%', height: '110px', objectFit: 'cover', display: 'block' }}
+                                  onError={e => { e.target.style.display = 'none'; }}
+                                />
+                                <div style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--gdg-text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {photo.name}
+                                </div>
+                                {report && !report.is_locked && (
+                                  <button
+                                    onClick={() => handleDeleteAsset(photo.id)}
+                                    title="Remove photo"
+                                    style={{ position: 'absolute', top: '4px', right: '4px', background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%', width: '22px', height: '22px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}
+                                  >
+                                    <Trash2 size={11} />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </DashboardCard>
+
+                {/* ── Card 2: Supporting Documents ────────────────────────────────── */}
+                <DashboardCard title="📎 Supporting Documents">
+                  {(() => {
+                    const supportingDocs = reportAssets.filter(a => a.category !== 'photo');
+                    const categoryLabel = {
+                      invitation_poster: 'Invitation / Poster',
+                      certificate: 'Certificates / Achievement',
+                      media_proof: 'Newspaper / Social Media Proof',
+                      attendance_list: 'Attendance / Participation List',
+                      budget_proof: 'Budget / Expense Proof',
+                      other: 'Other',
+                    };
+
+                    return (
+                      <>
+                        {/* Upload queue — only when unlocked */}
+                        {report && !report.is_locked && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px', paddingBottom: '16px', borderBottom: '1px solid var(--gdg-border)' }}>
+                            <p style={{ fontSize: '12px', color: 'var(--gdg-text-secondary)', margin: 0 }}>
+                              Select a category for each document. Click <strong>+ Add Another</strong> to queue multiple files, then <strong>Upload All</strong>.
+                            </p>
+
+                            {docQueue.map((row, idx) => (
+                              <div key={row.id} style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '12px', border: '1px solid var(--gdg-border)', borderRadius: '8px', background: 'var(--gdg-surface)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--gdg-text-secondary)' }}>
+                                    Document {idx + 1}
+                                  </span>
+                                  {docQueue.length > 1 && (
+                                    <button
+                                      onClick={() => setDocQueue(prev => prev.filter(r => r.id !== row.id))}
+                                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gdg-error)', fontSize: '13px' }}
+                                    >✕ Remove</button>
+                                  )}
+                                </div>
+
+                                {/* Category dropdown */}
+                                <select
+                                  value={row.category}
+                                  onChange={e => setDocQueue(prev => prev.map(r => r.id === row.id ? { ...r, category: e.target.value, otherLabel: '' } : r))}
+                                  style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid var(--gdg-border)', fontSize: '13px', background: 'var(--gdg-background)' }}
+                                >
+                                  <option value="invitation_poster">Invitation / Poster</option>
+                                  <option value="certificate">Certificates / Participation / Achievement</option>
+                                  <option value="media_proof">Newspaper / Media / Social-media Proof</option>
+                                  <option value="attendance_list">Attendance / Participation List</option>
+                                  <option value="budget_proof">Budget / Expense Proof (if sponsored)</option>
+                                  <option value="other">Other (please specify)</option>
+                                </select>
+
+                                {/* Other label field */}
+                                {row.category === 'other' && (
+                                  <input
+                                    type="text"
+                                    placeholder="Specify document type…"
+                                    value={row.otherLabel}
+                                    onChange={e => setDocQueue(prev => prev.map(r => r.id === row.id ? { ...r, otherLabel: e.target.value } : r))}
+                                    style={{ width: '100%', padding: '7px 10px', borderRadius: '6px', border: '1px solid var(--gdg-border)', fontSize: '13px', boxSizing: 'border-box' }}
+                                  />
+                                )}
+
+                                {/* File picker */}
+                                <input
+                                  type="file"
+                                  style={{ border: 'none', padding: 0, fontSize: '12px' }}
+                                  onChange={e => {
+                                    const f = e.target.files?.[0] || null;
+                                    setDocQueue(prev => prev.map(r => r.id === row.id ? { ...r, file: f } : r));
+                                  }}
+                                />
+                                {row.file && (
+                                  <span style={{ fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>
+                                    Selected: <strong>{row.file.name}</strong> ({(row.file.size / 1024).toFixed(1)} KB)
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+
+                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                              <button
+                                className="btn btn-secondary"
+                                onClick={() => setDocQueue(prev => [...prev, { id: Date.now(), category: 'invitation_poster', otherLabel: '', file: null }])}
+                                style={{ fontSize: '13px' }}
+                              >
+                                + Add Another Document
+                              </button>
+                              <button
+                                className="btn btn-primary"
+                                onClick={handleDocUpload}
+                                disabled={uploadingDocs || !docQueue.some(r => r.file)}
+                              >
+                                {uploadingDocs ? 'Uploading…' : `Upload All (${docQueue.filter(r => r.file).length} file${docQueue.filter(r => r.file).length !== 1 ? 's' : ''})`}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Uploaded documents list */}
+                        {supportingDocs.length === 0 ? (
+                          <p style={{ fontSize: '12px', fontStyle: 'italic', color: 'var(--gdg-text-secondary)' }}>No supporting documents uploaded yet.</p>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            {supportingDocs.map(doc => (
+                              <div key={doc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 12px', border: '1px solid var(--gdg-border)', borderRadius: '8px', background: 'var(--gdg-surface)' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden', flex: 1, minWidth: 0 }}>
+                                  <a
+                                    href={doc.file}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ fontSize: '13px', fontWeight: 500, color: 'var(--gdg-blue)', textDecoration: 'none', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}
+                                  >
+                                    📄 {doc.name}
+                                  </a>
+                                  <span style={{ fontSize: '11px', color: 'var(--gdg-text-secondary)' }}>
+                                    {categoryLabel[doc.category] || doc.category.replace('_', ' ')}
+                                  </span>
+                                </div>
+                                {report && !report.is_locked && (
+                                  <button
+                                    className="gdg-share-icon-btn"
+                                    style={{ color: 'var(--gdg-error)', marginLeft: '8px', flexShrink: 0 }}
+                                    onClick={() => handleDeleteAsset(doc.id)}
+                                    title="Delete document"
+                                  >
+                                    <Trash2 size={12} />
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </DashboardCard>
+
+                {/* Version History List */}
+                {report && report.is_locked && (
+                  <DashboardCard title="📜 Compilation Version History">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {reportVersions.length === 0 && (
+                        <p style={{ fontStyle: 'italic', color: 'var(--gdg-text-secondary)', fontSize: '12px' }}>
+                          No versions generated.
+                        </p>
+                      )}
+                      {reportVersions.map(ver => (
+                        <div key={ver.id} style={{ border: '1px solid var(--gdg-border)', borderRadius: '6px', padding: '10px', backgroundColor: ver.is_active ? 'var(--gdg-blue-light)' : '#FFF' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                            <strong style={{ fontSize: '13px' }}>Version {ver.version_number}</strong>
+                            {ver.is_active && <span style={{ fontSize: '10px', fontWeight: 'bold', color: 'var(--gdg-blue)', textTransform: 'uppercase' }}>Active</span>}
+                          </div>
+                          <span style={{ fontSize: '11px', display: 'block', color: 'var(--gdg-text-secondary)' }}>
+                            Generated: {new Date(ver.generated_at).toLocaleString()}
+                          </span>
+                          <span style={{ fontSize: '11px', display: 'block', color: 'var(--gdg-text-secondary)', marginBottom: '8px' }}>
+                            By: {ver.generated_by_email || 'System'}
+                          </span>
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <a href={ver.docx_file} download style={{ fontSize: '11px', color: 'var(--gdg-blue)', textDecoration: 'none', fontWeight: 600 }}>DOCX</a>
+                            <span style={{ color: 'var(--gdg-border)' }}>|</span>
+                            <a href={ver.pdf_file} download style={{ fontSize: '11px', color: 'var(--gdg-blue)', textDecoration: 'none', fontWeight: 600 }}>PDF</a>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </DashboardCard>
+                )}
+
+              </div>
+
+            </div>
+
+          </div>
         )}
 
       </div>
