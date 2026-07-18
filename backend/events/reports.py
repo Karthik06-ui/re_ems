@@ -8,6 +8,7 @@ from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.template.loader import render_to_string
+from django.core.files.base import ContentFile
 from xhtml2pdf import pisa
 
 from .models import Event, Registration, Team, TeamMember, EventAsset, Report, ReportVersion
@@ -28,24 +29,15 @@ def ensure_directories():
         os.makedirs(d, exist_ok=True)
 
 
-def create_default_template(template_path):
+def create_default_template(template_path=None):
     """
-    Copy the pre-designed corporate report template from the repository templates folder,
-    or programmatically generate a fallback template with the correct 9-table structure
-    expected by the compiler if the source template is missing.
+    Ensure the pre-designed corporate report template exists in the repository templates folder.
     """
-    if os.path.exists(template_path):
-        return
-
-    # Try copying from repository templates first
     repo_template = os.path.join(settings.BASE_DIR, 'templates', 'event_report_template.docx')
     if os.path.exists(repo_template):
-        import shutil
-        try:
-            shutil.copy2(repo_template, template_path)
-            return
-        except Exception as e:
-            print(f"Error copying template from {repo_template}: {e}. Generating fallback.")
+        return repo_template
+
+    os.makedirs(os.path.dirname(repo_template), exist_ok=True)
 
     # Programmatic fallback: Generate the exact 9-table structure to avoid IndexError
     import docx
@@ -147,7 +139,8 @@ def create_default_template(template_path):
     for c in t8.rows[1].cells:
         c.text = "N/A"
 
-    doc.save(template_path)
+    doc.save(repo_template)
+    return repo_template
 
 
 
@@ -189,8 +182,7 @@ def build_event_report(event_id, requested_by=None):
     if not report:
         raise ValueError("Report completion data has not been initialized for this event.")
         
-    template_path = os.path.join(settings.MEDIA_ROOT, 'templates', 'event_report_template.docx')
-    create_default_template(template_path)
+    template_path = create_default_template()
     
     # Open the custom template programmatically using python-docx
     doc = docx.Document(template_path)
@@ -322,7 +314,9 @@ def build_event_report(event_id, requested_by=None):
             p.text = ""
             run = p.add_run()
             try:
-                run.add_picture(asset.file.path, width=Inches(2.5))
+                with asset.file.open('rb') as f:
+                    img_buffer = io.BytesIO(f.read())
+                    run.add_picture(img_buffer, width=Inches(2.5))
                 # Add caption as a new paragraph
                 caption_p = cell.add_paragraph(f"Caption: {asset.name}")
                 caption_p.alignment = 1
@@ -339,7 +333,9 @@ def build_event_report(event_id, requested_by=None):
             p.alignment = 1
             run = p.add_run()
             try:
-                run.add_picture(asset.file.path, width=Inches(2.5))
+                with asset.file.open('rb') as f:
+                    img_buffer = io.BytesIO(f.read())
+                    run.add_picture(img_buffer, width=Inches(2.5))
                 cell.add_paragraph(f"Caption: {asset.name}").alignment = 1
             except Exception as img_err:
                 cell.text = f"Error loading image: {asset.name}"
@@ -394,13 +390,15 @@ def build_event_report(event_id, requested_by=None):
             name_para.paragraph_format.space_before = docx.shared.Pt(2)
             name_para.paragraph_format.space_after = docx.shared.Pt(4)
 
-            file_ext = os.path.splitext(asset.file.name)[1].lower()
-            if file_ext in IMAGE_EXTS and os.path.exists(asset.file.path):
+            file_ext = os.path.splitext(asset.file.name)[1].lower() if asset.file else ""
+            if file_ext in IMAGE_EXTS and asset.file:
                 try:
                     img_para = doc.add_paragraph()
                     img_para.alignment = 1  # centre
                     img_run = img_para.add_run()
-                    img_run.add_picture(asset.file.path, width=Inches(5.5))
+                    with asset.file.open('rb') as f:
+                        img_buffer = io.BytesIO(f.read())
+                        img_run.add_picture(img_buffer, width=Inches(5.5))
                 except Exception:
                     doc.add_paragraph("[Image could not be embedded — see ZIP package]")
             else:
@@ -413,18 +411,12 @@ def build_event_report(event_id, requested_by=None):
     latest_version = ReportVersion.objects.filter(event=event).order_by('-version_number').first()
     new_version_num = (latest_version.version_number + 1) if latest_version else 1
 
-    # Output filenames
     docx_filename = f"event_{event.id}_v{new_version_num}.docx"
     pdf_filename = f"event_{event.id}_v{new_version_num}.pdf"
-    
-    docx_dir = os.path.join(settings.MEDIA_ROOT, 'generated_reports', 'docx')
-    pdf_dir = os.path.join(settings.MEDIA_ROOT, 'generated_reports', 'pdf')
-    
-    docx_output_path = os.path.join(docx_dir, docx_filename)
-    pdf_output_path = os.path.join(pdf_dir, pdf_filename)
 
-    # Save DOCX
-    doc.save(docx_output_path)
+    # Save DOCX to buffer
+    docx_buffer = io.BytesIO()
+    doc.save(docx_buffer)
 
     # Generate PDF using WeasyPrint (HTML to PDF pipeline)
     regs = event.registrations.filter(
@@ -456,9 +448,9 @@ def build_event_report(event_id, requested_by=None):
         'generated_by': requested_by,
     })
     
+    pdf_buffer = io.BytesIO()
     try:
-        with open(pdf_output_path, "w+b") as out_pdf:
-            pisa_status = pisa.CreatePDF(html_string, dest=out_pdf)
+        pisa_status = pisa.CreatePDF(html_string, dest=pdf_buffer)
         if pisa_status.err:
             print(f"xhtml2pdf PDF compilation failed with errors")
     except Exception as e:
@@ -473,11 +465,18 @@ def build_event_report(event_id, requested_by=None):
     version_instance = ReportVersion.objects.create(
         event=event,
         version_number=new_version_num,
-        docx_file=os.path.relpath(docx_output_path, settings.MEDIA_ROOT).replace("\\", "/"),
-        pdf_file=os.path.relpath(pdf_output_path, settings.MEDIA_ROOT).replace("\\", "/"),
         generated_by=requested_by,
         is_active=True
     )
+    
+    # Save files to fields
+    docx_buffer.seek(0)
+    version_instance.docx_file.save(docx_filename, ContentFile(docx_buffer.read()), save=False)
+    
+    pdf_buffer.seek(0)
+    version_instance.pdf_file.save(pdf_filename, ContentFile(pdf_buffer.read()), save=False)
+    
+    version_instance.save()
 
     return version_instance
 
@@ -497,23 +496,25 @@ def compile_report_zip(event_id):
     
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         # 1. Add DOCX
-        if active_version.docx_file and os.path.exists(active_version.docx_file.path):
-            zip_file.write(
-                active_version.docx_file.path, 
-                arcname=f"Event_Report_v{active_version.version_number}.docx"
-            )
+        if active_version.docx_file:
+            try:
+                with active_version.docx_file.open('rb') as f:
+                    zip_file.writestr(f"Event_Report_v{active_version.version_number}.docx", f.read())
+            except Exception:
+                pass
             
         # 2. Add PDF
-        if active_version.pdf_file and os.path.exists(active_version.pdf_file.path):
-            zip_file.write(
-                active_version.pdf_file.path, 
-                arcname=f"Event_Report_v{active_version.version_number}.pdf"
-            )
+        if active_version.pdf_file:
+            try:
+                with active_version.pdf_file.open('rb') as f:
+                    zip_file.writestr(f"Event_Report_v{active_version.version_number}.pdf", f.read())
+            except Exception:
+                pass
 
         # 3. Add Event Assets grouped by categories
         event_assets = event.assets.all()
         for asset in event_assets:
-            if asset.file and os.path.exists(asset.file.path):
+            if asset.file:
                 # Clean name and group in folder structure
                 folder_name = "Photographs" if asset.category == EventAsset.AssetCategory.PHOTO else "Supporting_Documents"
                 category_folder = asset.category.replace("_", " ").title().replace(" ", "_")
@@ -523,7 +524,11 @@ def compile_report_zip(event_id):
                 else:
                     archive_path = os.path.join(folder_name, category_folder, asset.name)
                     
-                zip_file.write(asset.file.path, arcname=archive_path)
+                try:
+                    with asset.file.open('rb') as f:
+                        zip_file.writestr(archive_path, f.read())
+                except Exception:
+                    pass
 
     zip_buffer.seek(0)
     return zip_buffer

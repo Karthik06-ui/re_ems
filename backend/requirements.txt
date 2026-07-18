@@ -14,3 +14,5 @@ whitenoise>=6.8.2
 python-docx==1.1.2
 docxtpl==0.16.8
 xhtml2pdf==0.2.16
+cloudinary>=1.36.0
+django-cloudinary-storage>=0.3.0
