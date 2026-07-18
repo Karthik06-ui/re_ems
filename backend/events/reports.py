@@ -500,16 +500,18 @@ def compile_report_zip(event_id):
             try:
                 with active_version.docx_file.open('rb') as f:
                     zip_file.writestr(f"Event_Report_v{active_version.version_number}.docx", f.read())
-            except Exception:
-                pass
+                print(f"[ZIP] Added DOCX: {active_version.docx_file.name}")
+            except Exception as e:
+                print(f"[ZIP] ERROR adding DOCX: {e}")
             
         # 2. Add PDF
         if active_version.pdf_file:
             try:
                 with active_version.pdf_file.open('rb') as f:
                     zip_file.writestr(f"Event_Report_v{active_version.version_number}.pdf", f.read())
-            except Exception:
-                pass
+                print(f"[ZIP] Added PDF: {active_version.pdf_file.name}")
+            except Exception as e:
+                print(f"[ZIP] ERROR adding PDF: {e}")
 
         # 3. Add Event Assets grouped by categories
         event_assets = event.assets.all()
@@ -527,8 +529,9 @@ def compile_report_zip(event_id):
                 try:
                     with asset.file.open('rb') as f:
                         zip_file.writestr(archive_path, f.read())
-                except Exception:
-                    pass
+                    print(f"[ZIP] Added asset: {archive_path}")
+                except Exception as e:
+                    print(f"[ZIP] ERROR adding asset {asset.name}: {e}")
 
     zip_buffer.seek(0)
     return zip_buffer

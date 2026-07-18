@@ -1,6 +1,14 @@
 from django.db import models
 from django.conf import settings
+from django.core.files.storage import FileSystemStorage
+import os
 import uuid
+
+def get_raw_storage():
+    if os.getenv('CLOUDINARY_URL'):
+        from cloudinary_storage.storage import RawMediaCloudinaryStorage
+        return RawMediaCloudinaryStorage()
+    return FileSystemStorage()
 
 
 class Event(models.Model):
@@ -305,8 +313,8 @@ class EventAsset(models.Model):
 class ReportVersion(models.Model):
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='report_versions')
     version_number = models.PositiveIntegerField()
-    docx_file = models.FileField(upload_to='generated_reports/docx/')
-    pdf_file = models.FileField(upload_to='generated_reports/pdf/')
+    docx_file = models.FileField(upload_to='generated_reports/docx/', storage=get_raw_storage)
+    pdf_file = models.FileField(upload_to='generated_reports/pdf/', storage=get_raw_storage)
     generated_at = models.DateTimeField(auto_now_add=True)
     generated_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     is_active = models.BooleanField(default=True)

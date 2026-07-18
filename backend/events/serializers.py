@@ -256,18 +256,26 @@ class ReportVersionSerializer(serializers.ModelSerializer):
     def get_docx_file(self, obj):
         if not obj.docx_file:
             return None
+        url = obj.docx_file.url
+        # Cloudinary URLs are already absolute, don't wrap them
+        if url.startswith('http'):
+            return url
         request = self.context.get('request')
         if request:
-            return request.build_absolute_uri(obj.docx_file.url)
-        return obj.docx_file.url
+            return request.build_absolute_uri(url)
+        return url
 
     def get_pdf_file(self, obj):
         if not obj.pdf_file:
             return None
+        url = obj.pdf_file.url
+        # Cloudinary URLs are already absolute, don't wrap them
+        if url.startswith('http'):
+            return url
         request = self.context.get('request')
         if request:
-            return request.build_absolute_uri(obj.pdf_file.url)
-        return obj.pdf_file.url
+            return request.build_absolute_uri(url)
+        return url
 
 
 
