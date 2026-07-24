@@ -250,5 +250,8 @@ EMAIL_TIMEOUT = 10  # Timeout in seconds for SMTP connections
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-
+PARTICIPANT_PORTAL_URL = os.getenv(
+    "PARTICIPANT_PORTAL_URL",
+    "https://re-ems.vercel.app/portal",
+)
 
