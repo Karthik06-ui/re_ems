@@ -194,7 +194,8 @@ SIMPLE_JWT = {
 }
 
 # CORS Configuration
-raw_cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', 'http://localhost:5173,http://localhost:3000,http://localhost:5174').split(',')
+default_cors = 'https://researchcell.kct.ac.in,http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000,http://localhost:5174'
+raw_cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', default_cors).split(',')
 CORS_ALLOWED_ORIGINS = []
 for origin in raw_cors_origins:
     origin_strip = origin.strip()
@@ -206,7 +207,7 @@ for origin in raw_cors_origins:
         else:
             CORS_ALLOWED_ORIGINS.append(origin_strip)
 
-CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'True') == 'True'
+CORS_ALLOW_ALL_ORIGINS = os.getenv('CORS_ALLOW_ALL_ORIGINS', 'False').lower() == 'true'
 
 # CSRF Configuration
 raw_csrf_origins = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')

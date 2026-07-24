@@ -29,6 +29,8 @@ urlpatterns = [
     path('api/v1/sponsors/', include('sponsors.urls')),
     path('api/v1/portal/', include('participants.urls')),
     path('api/v1/chapters/', include('events.chapter_urls')),
+    path('api/public/', include('events.public_urls')),
+    path('api/v1/public/', include('events.public_urls')),
 ]
 
 if settings.DEBUG:

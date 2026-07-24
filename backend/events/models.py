@@ -64,11 +64,31 @@ class Event(models.Model):
         null=True, blank=True, related_name='coordinated_events'
     )
 
+    slug = models.SlugField(max_length=280, unique=True, blank=True, null=True)
+
     class Meta:
         ordering = ['-created_at']
 
     def __str__(self):
         return self.title
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            from django.utils.text import slugify
+            base_slug = slugify(self.title) or "event"
+            candidate = base_slug
+            num = 1
+            qs = Event.objects.filter(slug=candidate)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            while qs.exists():
+                candidate = f"{base_slug}-{num}"
+                num += 1
+                qs = Event.objects.filter(slug=candidate)
+                if self.pk:
+                    qs = qs.exclude(pk=self.pk)
+            self.slug = candidate
+        super().save(*args, **kwargs)
 
 class Registration(models.Model):
     class Status(models.TextChoices):

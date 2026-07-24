@@ -13,15 +13,15 @@ class EventRegistrationTests(APITestCase):
     def setUp(self):
         self.user_a = User.objects.create_user(
             email='user_a@test.com', name='User A', password='password123',
-            roll_number='A101', department='CSE', phone_number='1234567890'
+            roll_number='A101', department='CSE', year_of_study='3rd', phone_number='1234567890'
         )
         self.user_b = User.objects.create_user(
             email='user_b@test.com', name='User B', password='password123',
-            roll_number='B102', department='ECE', phone_number='1234567891'
+            roll_number='B102', department='ECE', year_of_study='3rd', phone_number='1234567891'
         )
         self.user_c = User.objects.create_user(
             email='user_c@test.com', name='User C', password='password123',
-            roll_number='C103', department='MECH', phone_number='1234567892'
+            roll_number='C103', department='MECH', year_of_study='3rd', phone_number='1234567892'
         )
         
         # Create an event with capacity = 2
@@ -130,11 +130,11 @@ class TeamRegistrationTests(APITestCase):
     def setUp(self):
         self.leader = User.objects.create_user(
             email='leader@test.com', name='Leader', password='password123',
-            roll_number='L101', department='CSE', phone_number='1112223333'
+            roll_number='L101', department='CSE', year_of_study='3rd', phone_number='1112223333'
         )
         self.member = User.objects.create_user(
             email='member@test.com', name='Member', password='password123',
-            roll_number='M102', department='ECE', phone_number='1112223334'
+            roll_number='M102', department='ECE', year_of_study='3rd', phone_number='1112223334'
         )
         self.team_event = Event.objects.create(
             title='Hackathon 2026',
@@ -199,5 +199,87 @@ class TeamRegistrationTests(APITestCase):
         team.refresh_from_db()
         self.assertEqual(team.status, Team.RegistrationStatus.REGISTERED)
         self.assertEqual(Registration.objects.filter(event=self.team_event, status=Registration.Status.CONFIRMED).count(), 2)
+
+
+class PublicEventsAPITests(APITestCase):
+    def setUp(self):
+        self.published_event = Event.objects.create(
+            title='Public AI Workshop',
+            description='A public workshop on machine learning.',
+            type=Event.EventType.PHYSICAL,
+            status=Event.EventStatus.PUBLISHED,
+            category=Event.EventCategory.WORKSHOP,
+            start_time=timezone.now() + timedelta(days=5),
+            end_time=timezone.now() + timedelta(days=5, hours=3),
+            capacity=50,
+            venue='Auditorium 1'
+        )
+        self.draft_event = Event.objects.create(
+            title='Draft Event',
+            description='Draft description',
+            type=Event.EventType.VIRTUAL,
+            status=Event.EventStatus.DRAFT,
+            category=Event.EventCategory.BOOTCAMP,
+            start_time=timezone.now() + timedelta(days=10),
+            end_time=timezone.now() + timedelta(days=10, hours=2),
+            capacity=20
+        )
+        self.cancelled_event = Event.objects.create(
+            title='Cancelled Summit',
+            description='Cancelled description',
+            type=Event.EventType.HYBRID,
+            status=Event.EventStatus.CANCELLED,
+            category=Event.EventCategory.HACKATHON,
+            start_time=timezone.now() + timedelta(days=15),
+            end_time=timezone.now() + timedelta(days=15, hours=5),
+            capacity=100
+        )
+        self.list_url = '/api/public/events/'
+
+    def test_slug_auto_generated(self):
+        """Verify that slug is automatically generated when event is created."""
+        self.assertTrue(self.published_event.slug.startswith('public-ai-workshop'))
+
+    def test_public_event_list_unauthenticated(self):
+        """Public list endpoint returns 200 OK without auth and excludes draft/cancelled events."""
+        response = self.client.get(self.list_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        slugs = [item['slug'] for item in response.data]
+        self.assertIn(self.published_event.slug, slugs)
+        self.assertNotIn(self.draft_event.slug, slugs)
+        self.assertNotIn(self.cancelled_event.slug, slugs)
+
+    def test_public_event_detail_unauthenticated(self):
+        """Public detail endpoint returns sanitized data without PII or internal counts."""
+        url = f"/api/public/events/{self.published_event.slug}/"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.data
+
+        # Check required fields present
+        self.assertEqual(data['title'], 'Public AI Workshop')
+        self.assertEqual(data['slug'], self.published_event.slug)
+        self.assertEqual(data['capacity'], 50)
+        self.assertEqual(data['remaining_seats'], 50)
+        self.assertFalse(data['is_full'])
+        self.assertTrue(data['is_registration_open'])
+        self.assertEqual(data['public_status'], 'open')
+
+        # Verify sensitive/internal fields NOT present
+        self.assertNotIn('registration_count', data)
+        self.assertNotIn('registrations', data)
+        self.assertNotIn('survey_questions', data)
+        self.assertNotIn('announcements', data)
+        self.assertNotIn('created_by_user_email', data)
+        self.assertNotIn('created_by_profile_name', data)
+
+    def test_public_event_filtering(self):
+        """Test time_frame and category filters."""
+        url = f"{self.list_url}?time_frame=upcoming&category=workshop"
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]['slug'], self.published_event.slug)
+
 
 
