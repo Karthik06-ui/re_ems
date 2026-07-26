@@ -194,7 +194,7 @@ SIMPLE_JWT = {
 }
 
 # CORS Configuration
-default_cors = 'https://researchcell.kct.ac.in,http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000,http://localhost:5174'
+default_cors = 'https://researchcell.kct.ac.in,http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000,http://localhost:5174,https://reos-sooty.vercel.app'
 raw_cors_origins = os.getenv('CORS_ALLOWED_ORIGINS', default_cors).split(',')
 CORS_ALLOWED_ORIGINS = []
 for origin in raw_cors_origins:
